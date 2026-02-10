@@ -1,0 +1,2004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Haji Ali Traders - Waste Sorting</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <style>
+        /* === VIBRANT ECO-GREEN THEME === */
+        :root {
+            --primary-green: #27ae60;
+            --dark-green: #219653;
+            --light-green: #d4edda;
+            --vibrant-green: #2ecc71;
+            --accent-teal: #1abc9c;
+            --background: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-dark: #2c3e50;
+            --text-light: #7f8c8d;
+            --border: #dfe6e9;
+            --pending: #f39c12;
+            --finished: #3498db;
+            --error: #e74c3c;
+            --warning: #f1c40f;
+        }
+        
+        /* === BASE STYLES === */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, var(--background) 0%, #e8f5e9 100%);
+            color: var(--text-dark);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 100%;
+            min-height: 100vh;
+            padding: 0;
+        }
+        
+        /* === HEADER === */
+        .app-header {
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            color: white;
+            padding: 20px 15px;
+            box-shadow: 0 4px 20px rgba(39, 174, 96, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .app-icon {
+            width: 50px;
+            height: 50px;
+            background: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: var(--primary-green);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .app-title h1 {
+            font-size: 1.4rem;
+            margin-bottom: 3px;
+            font-weight: 700;
+        }
+        
+        .app-title p {
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+        
+        .sync-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+        }
+        
+        .sync-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #2ecc71;
+            animation: pulse 2s infinite;
+        }
+        
+        .sync-dot.offline {
+            background: #e74c3c;
+            animation: none;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* === TABS === */
+        .tabs-container {
+            background: white;
+            border-radius: 0 0 20px 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+            padding: 0 15px;
+        }
+        
+        .tabs {
+            display: flex;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 18px 10px;
+            text-align: center;
+            font-weight: 600;
+            color: var(--text-light);
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .tab:hover {
+            background: var(--light-green);
+        }
+        
+        .tab.active {
+            color: var(--primary-green);
+            border-bottom-color: var(--primary-green);
+            background: linear-gradient(to top, var(--light-green), transparent);
+        }
+        
+        .tab-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: var(--vibrant-green);
+            color: white;
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 10px;
+            min-width: 18px;
+        }
+        
+        /* === MAIN CONTENT === */
+        .app-content {
+            padding: 15px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* === CARDS === */
+        .card {
+            background: var(--card-bg);
+            border-radius: 18px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+            border: 1px solid var(--border);
+        }
+        
+        .card-title {
+            font-size: 1.2rem;
+            color: var(--text-dark);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .card-title i {
+            color: var(--primary-green);
+        }
+        
+        /* === BUTTON GRIDS === */
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin: 20px 0;
+        }
+        
+        @media (max-width: 480px) {
+            .button-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        .grid-btn {
+            padding: 18px 10px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            background: var(--background);
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: var(--text-dark);
+        }
+        
+        .grid-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+        
+        .grid-btn.selected {
+            border-color: var(--primary-green);
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--accent-teal) 100%);
+            color: white;
+            box-shadow: 0 6px 15px rgba(39, 174, 96, 0.3);
+        }
+        
+        .add-btn {
+            border-style: dashed;
+            border-color: var(--accent-teal);
+            color: var(--accent-teal);
+            background: rgba(26, 188, 156, 0.1);
+        }
+        
+        .add-btn:hover {
+            background: var(--accent-teal);
+            color: white;
+        }
+        
+        /* === INPUTS === */
+        .input-group {
+            margin: 25px 0;
+        }
+        
+        .input-label {
+            display: block;
+            margin-bottom: 12px;
+            font-weight: 600;
+            color: var(--text-dark);
+            font-size: 1.1rem;
+        }
+        
+        .weight-input {
+            width: 100%;
+            padding: 20px;
+            border: 2px solid var(--border);
+            border-radius: 15px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            text-align: center;
+            background: var(--background);
+            color: var(--text-dark);
+            transition: all 0.3s;
+        }
+        
+        .weight-input:focus {
+            border-color: var(--primary-green);
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(39, 174, 96, 0.1);
+            background: white;
+        }
+        
+        /* === STATUS BUTTONS === */
+        .status-buttons {
+            display: flex;
+            gap: 15px;
+            margin: 30px 0;
+        }
+        
+        .status-btn {
+            flex: 1;
+            padding: 20px;
+            border: 2px solid var(--border);
+            border-radius: 15px;
+            background: var(--background);
+            font-weight: 700;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .status-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .status-btn.selected {
+            border-color: var(--primary-green);
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            color: white;
+            box-shadow: 0 8px 20px rgba(39, 174, 96, 0.3);
+        }
+        
+        /* === ACTION BUTTONS === */
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        .action-btn {
+            flex: 1;
+            padding: 20px;
+            border: none;
+            border-radius: 15px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .btn-clear {
+            background: var(--background);
+            color: var(--text-light);
+        }
+        
+        .btn-clear:hover {
+            background: #e9ecef;
+        }
+        
+        .btn-save {
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--accent-teal) 100%);
+            color: white;
+            box-shadow: 0 8px 25px rgba(39, 174, 96, 0.4);
+        }
+        
+        .btn-save:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(39, 174, 96, 0.5);
+        }
+        
+        /* === STATS GRID === */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 25px 0;
+        }
+        
+        @media (max-width: 600px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        .stat-box {
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--accent-teal) 100%);
+            padding: 25px 20px;
+            border-radius: 15px;
+            text-align: center;
+            color: white;
+            box-shadow: 0 8px 20px rgba(39, 174, 96, 0.3);
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+        
+        /* === BATCH CARDS === */
+        .batch-list {
+            margin-top: 20px;
+        }
+        
+        .batch-card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-left: 5px solid var(--primary-green);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+            transition: all 0.3s;
+            border: 1px solid var(--border);
+        }
+        
+        .batch-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        
+        .batch-card.pending {
+            border-left-color: var(--pending);
+        }
+        
+        .batch-card.finished {
+            border-left-color: var(--finished);
+        }
+        
+        .batch-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .batch-title {
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: var(--text-dark);
+        }
+        
+        .batch-weight {
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--accent-teal) 100%);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            min-width: 100px;
+            text-align: center;
+        }
+        
+        .batch-details {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: var(--text-light);
+            margin-bottom: 15px;
+        }
+        
+        .batch-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .action-small {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        
+        .btn-edit {
+            background: var(--light-green);
+            color: var(--primary-green);
+        }
+        
+        .btn-edit:hover {
+            background: var(--primary-green);
+            color: white;
+        }
+        
+        .btn-finish {
+            background: linear-gradient(135deg, var(--finished) 0%, #2980b9 100%);
+            color: white;
+        }
+        
+        .btn-finish:hover {
+            opacity: 0.9;
+        }
+        
+        /* === MODALS === */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            animation: fadeIn 0.3s;
+        }
+        
+        .modal {
+            background: white;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 500px;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            animation: slideUp 0.4s;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .modal-header {
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+        
+        .modal-header h2 {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+        
+        .modal-body {
+            padding: 30px;
+        }
+        
+        .modal-input {
+            width: 100%;
+            padding: 18px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+        }
+        
+        .modal-input:focus {
+            border-color: var(--primary-green);
+            outline: none;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .modal-btn {
+            flex: 1;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .btn-cancel {
+            background: var(--background);
+            color: var(--text-light);
+        }
+        
+        .btn-submit {
+            background: var(--primary-green);
+            color: white;
+        }
+        
+        /* === NOTIFICATION === */
+        .notification {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            background: linear-gradient(135deg, var(--primary-green) 0%, var(--dark-green) 100%);
+            color: white;
+            padding: 20px 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(39, 174, 96, 0.4);
+            display: none;
+            z-index: 1001;
+            animation: slideInRight 0.3s;
+            max-width: 400px;
+        }
+        
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .notification.error {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+        
+        /* === EMPTY STATE === */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-light);
+        }
+        
+        .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        
+        /* === COLOR INDICATORS === */
+        .color-dot {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            margin-right: 8px;
+            vertical-align: middle;
+            border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        /* === LOADING === */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 50px;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--light-green);
+            border-top: 4px solid var(--primary-green);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* === FOOTER === */
+        .app-footer {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-light);
+            font-size: 0.85rem;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="app-icon">🗑️</div>
+                    <div class="app-title">
+                        <h1>Haji Ali Traders</h1>
+                        <p>Waste Sorting & Inventory Management</p>
+                    </div>
+                </div>
+                <div class="sync-status" id="syncStatus">
+                    <div class="sync-dot" id="syncDot"></div>
+                    <span id="syncText">Synced</span>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Tabs -->
+        <div class="tabs-container">
+            <div class="tabs">
+                <div class="tab active" data-tab="add">
+                    ➕ Add Entry
+                    <span class="tab-badge" id="addBadge" style="display: none;">0</span>
+                </div>
+                <div class="tab" data-tab="pending">
+                    ⏳ Pending Stock
+                    <span class="tab-badge" id="pendingBadge">0</span>
+                </div>
+                <div class="tab" data-tab="finished">
+                    ✅ Finished
+                    <span class="tab-badge" id="finishedBadge">0</span>
+                </div>
+                <div class="tab" data-tab="backup">
+                    💾 Backup
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <main class="app-content">
+            <!-- Add Entry Tab -->
+            <div class="tab-content active" id="add">
+                <!-- Material Selection -->
+                <div class="card">
+                    <h2 class="card-title">
+                        <span>🎯</span> Select Material
+                    </h2>
+                    <div class="button-grid" id="materialGrid">
+                        <!-- Materials loaded dynamically -->
+                    </div>
+                    <button class="grid-btn add-btn" id="addMaterialBtn">
+                        <span>➕</span> Add New Material
+                    </button>
+                </div>
+                
+                <!-- Colour Selection -->
+                <div class="card">
+                    <h2 class="card-title">
+                        <span>🎨</span> Select Colour
+                    </h2>
+                    <div class="button-grid" id="colourGrid">
+                        <!-- Colours loaded dynamically -->
+                    </div>
+                    <button class="grid-btn add-btn" id="addColourBtn">
+                        <span>➕</span> Add New Colour
+                    </button>
+                </div>
+                
+                <!-- Weight & Status -->
+                <div class="card">
+                    <div class="input-group">
+                        <label class="input-label">⚖️ Weight (kg)</label>
+                        <input type="number" class="weight-input" id="weight" 
+                               step="0.1" min="0.1" placeholder="Enter weight in kilograms">
+                    </div>
+                    
+                    <div class="status-buttons">
+                        <div class="status-btn selected" data-status="pending">
+                            <span>⏳</span> Pending Stock
+                        </div>
+                        <div class="status-btn" data-status="finished">
+                            <span>✅</span> Finished Batch
+                        </div>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button class="action-btn btn-clear" id="clearBtn">
+                            <span>🗑️</span> Clear Form
+                        </button>
+                        <button class="action-btn btn-save" id="saveBtn">
+                            <span>💾</span> Save Entry
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Pending Stock Tab -->
+            <div class="tab-content" id="pending">
+                <div class="card">
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <span class="stat-value" id="pendingTotalWeight">0</span>
+                            <span class="stat-label">Total Pending (kg)</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-value" id="pendingBatchesCount">0</span>
+                            <span class="stat-label">Active Batches</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-value" id="pendingItemsCount">0</span>
+                            <span class="stat-label">Total Entries</span>
+                        </div>
+                    </div>
+                    
+                    <div class="batch-list" id="pendingList">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Finished Tab -->
+            <div class="tab-content" id="finished">
+                <div class="card">
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <span class="stat-value" id="finishedTotalWeight">0</span>
+                            <span class="stat-label">Total Finished (kg)</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-value" id="finishedBatchesCount">0</span>
+                            <span class="stat-label">Completed Batches</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-value" id="finishedItemsCount">0</span>
+                            <span class="stat-label">Total Entries</span>
+                        </div>
+                    </div>
+                    
+                    <div class="batch-list" id="finishedList">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Backup Tab -->
+            <div class="tab-content" id="backup">
+                <div class="card">
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <span class="stat-value" id="totalEntries">0</span>
+                            <span class="stat-label">Total Entries</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-value" id="storageUsed">0 KB</span>
+                            <span class="stat-label">Storage Used</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-value" id="lastSync">-</span>
+                            <span class="stat-label">Last Synced</span>
+                        </div>
+                    </div>
+                    
+                    <div class="button-grid" style="margin: 25px 0;">
+                        <button class="grid-btn" id="exportBtn" style="background: var(--finished); color: white;">
+                            <span>⬇️</span> Export Data
+                        </button>
+                        <button class="grid-btn" id="importBtn" style="background: var(--accent-teal); color: white;">
+                            <span>⬆️</span> Import Data
+                        </button>
+                        <button class="grid-btn" id="clearAllBtn" style="background: var(--error); color: white;">
+                            <span>🗑️</span> Clear All
+                        </button>
+                    </div>
+                    
+                    <div style="padding: 20px; background: var(--light-green); border-radius: 15px; margin-top: 20px;">
+                        <h3 style="color: var(--dark-green); margin-bottom: 10px;">📱 About This App</h3>
+                        <p style="color: var(--text-light); font-size: 0.9rem;">
+                            • Data saved locally and synced to cloud<br>
+                            • Works completely offline<br>
+                            • Real-time updates across all devices<br>
+                            • Add new colours/materials as needed
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>Haji Ali Traders © 2023 • Waste Management System v1.0</p>
+        </footer>
+        
+        <!-- Modals -->
+        <!-- Add Material Modal -->
+        <div class="modal-overlay" id="materialModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h2>➕ Add New Material</h2>
+                    <p>Add a new material type to the list</p>
+                </div>
+                <div class="modal-body">
+                    <input type="text" class="modal-input" id="newMaterialInput" 
+                           placeholder="Enter material name (e.g., Silk, Linen)">
+                    <div class="modal-actions">
+                        <button class="modal-btn btn-cancel" id="cancelMaterialBtn">Cancel</button>
+                        <button class="modal-btn btn-submit" id="saveMaterialBtn">Add Material</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Add Colour Modal -->
+        <div class="modal-overlay" id="colourModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h2>🎨 Add New Colour</h2>
+                    <p>Add a new colour to the list</p>
+                </div>
+                <div class="modal-body">
+                    <input type="text" class="modal-input" id="newColourInput" 
+                           placeholder="Enter colour name (e.g., Navy Blue, Peach)">
+                    <div class="modal-actions">
+                        <button class="modal-btn btn-cancel" id="cancelColourBtn">Cancel</button>
+                        <button class="modal-btn btn-submit" id="saveColourBtn">Add Colour</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Edit Weight Modal -->
+        <div class="modal-overlay" id="editWeightModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h2>⚖️ Edit Batch Weight</h2>
+                    <p id="editBatchTitle">Adjust the total weight</p>
+                </div>
+                <div class="modal-body">
+                    <input type="number" class="modal-input" id="editWeightInput" 
+                           step="0.1" min="0.1" placeholder="Enter new weight">
+                    <div class="modal-actions">
+                        <button class="modal-btn btn-cancel" id="cancelEditBtn">Cancel</button>
+                        <button class="modal-btn btn-submit" id="saveEditBtn">Update Weight</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Notification -->
+        <div class="notification" id="notification">
+            <span id="notificationText">Entry saved successfully!</span>
+        </div>
+    </div>
+
+    <!-- Main App Script -->
+    <script>
+        // ============================================
+        // FIREBASE CONFIGURATION
+        // ============================================
+        // ⚠️ REPLACE WITH YOUR FIREBASE CONFIG ⚠️
+        const firebaseConfig = {
+  apiKey: "AIzaSyByCMBxi1YkvRZpiPELxZwXETcCI0EUwP0",
+  authDomain: "haji-ali-traders-ed7cc.firebaseapp.com",
+  projectId: "haji-ali-traders-ed7cc",
+  storageBucket: "haji-ali-traders-ed7cc.firebasestorage.app",
+  messagingSenderId: "746078974269",
+  appId: "1:746078974269:web:55c1f37a9a11c8b887d554"
+};
+        
+        // ============================================
+        // APP CONFIGURATION
+        // ============================================
+        const APP_CONFIG = {
+            appName: "Haji Ali Traders",
+            version: "1.0.0",
+            defaultMaterials: ["Cotton 1st", "Gaada", "Polyester", "Rising", "80/20", "Other"],
+            defaultColours: ["Darga", "Orange", "Red", "Yellow", "Green", "White", "Mecko", 
+                           "Bottle Green", "Maroon", "Apple Green", "Rani Rose", "Biscuit", 
+                           "TC", "Grey", "Other"],
+            firestoreCollections: {
+                entries: "waste_entries",
+                batches: "waste_batches",
+                materials: "material_list",
+                colours: "colour_list",
+                settings: "app_settings"
+            }
+        };
+        
+        // ============================================
+        // GLOBAL STATE
+        // ============================================
+        let appState = {
+            // User selections
+            selectedMaterial: null,
+            selectedColour: null,
+            selectedStatus: "pending",
+            
+            // Local data
+            materials: [...APP_CONFIG.defaultMaterials],
+            colours: [...APP_CONFIG.defaultColours],
+            batches: [],
+            entries: [],
+            
+            // Firebase
+            firebaseInitialized: false,
+            db: null,
+            unsubscribeFunctions: [],
+            
+            // Sync state
+            isOnline: navigator.onLine,
+            lastSyncTime: null,
+            pendingSync: [],
+            
+            // Current batch being edited
+            editingBatch: null
+        };
+        
+        // ============================================
+        // DOM ELEMENTS
+        // ============================================
+        const elements = {
+            // Tabs
+            tabs: document.querySelectorAll('.tab'),
+            tabContents: document.querySelectorAll('.tab-content'),
+            
+            // Selection grids
+            materialGrid: document.getElementById('materialGrid'),
+            colourGrid: document.getElementById('colourGrid'),
+            
+            // Inputs
+            weightInput: document.getElementById('weight'),
+            
+            // Buttons
+            addMaterialBtn: document.getElementById('addMaterialBtn'),
+            addColourBtn: document.getElementById('addColourBtn'),
+            clearBtn: document.getElementById('clearBtn'),
+            saveBtn: document.getElementById('saveBtn'),
+            exportBtn: document.getElementById('exportBtn'),
+            importBtn: document.getElementById('importBtn'),
+            clearAllBtn: document.getElementById('clearAllBtn'),
+            
+            // Status buttons
+            statusButtons: document.querySelectorAll('.status-btn'),
+            
+            // Modals
+            materialModal: document.getElementById('materialModal'),
+            colourModal: document.getElementById('colourModal'),
+            editWeightModal: document.getElementById('editWeightModal'),
+            
+            // Modal buttons
+            saveMaterialBtn: document.getElementById('saveMaterialBtn'),
+            cancelMaterialBtn: document.getElementById('cancelMaterialBtn'),
+            saveColourBtn: document.getElementById('saveColourBtn'),
+            cancelColourBtn: document.getElementById('cancelColourBtn'),
+            saveEditBtn: document.getElementById('saveEditBtn'),
+            cancelEditBtn: document.getElementById('cancelEditBtn'),
+            
+            // Modal inputs
+            newMaterialInput: document.getElementById('newMaterialInput'),
+            newColourInput: document.getElementById('newColourInput'),
+            editWeightInput: document.getElementById('editWeightInput'),
+            editBatchTitle: document.getElementById('editBatchTitle'),
+            
+            // Lists
+            pendingList: document.getElementById('pendingList'),
+            finishedList: document.getElementById('finishedList'),
+            
+            // Stats
+            pendingTotalWeight: document.getElementById('pendingTotalWeight'),
+            pendingBatchesCount: document.getElementById('pendingBatchesCount'),
+            pendingItemsCount: document.getElementById('pendingItemsCount'),
+            finishedTotalWeight: document.getElementById('finishedTotalWeight'),
+            finishedBatchesCount: document.getElementById('finishedBatchesCount'),
+            finishedItemsCount: document.getElementById('finishedItemsCount'),
+            totalEntries: document.getElementById('totalEntries'),
+            storageUsed: document.getElementById('storageUsed'),
+            lastSync: document.getElementById('lastSync'),
+            
+            // Badges
+            addBadge: document.getElementById('addBadge'),
+            pendingBadge: document.getElementById('pendingBadge'),
+            finishedBadge: document.getElementById('finishedBadge'),
+            
+            // Sync status
+            syncDot: document.getElementById('syncDot'),
+            syncText: document.getElementById('syncText'),
+            syncStatus: document.getElementById('syncStatus'),
+            
+            // Notification
+            notification: document.getElementById('notification'),
+            notificationText: document.getElementById('notificationText')
+        };
+        
+        // ============================================
+        // FIREBASE INITIALIZATION
+        // ============================================
+        async function initializeFirebase() {
+            try {
+                // Check if Firebase config is set
+                if (firebaseConfig.apiKey === "YOUR_API_KEY_HERE") {
+                    console.warn("Firebase config not set. Running in offline mode.");
+                    showNotification("Running in offline mode. Configure Firebase for cloud sync.", "error");
+                    return false;
+                }
+                
+                // Initialize Firebase
+                firebase.initializeApp(firebaseConfig);
+                appState.db = firebase.firestore();
+                
+                // Enable offline persistence
+                await appState.db.enablePersistence()
+                    .catch((err) => {
+                        console.warn("Offline persistence failed:", err);
+                    });
+                
+                appState.firebaseInitialized = true;
+                console.log("Firebase initialized successfully");
+                
+                // Start listening to real-time updates
+                setupFirebaseListeners();
+                
+                return true;
+                
+            } catch (error) {
+                console.error("Firebase initialization error:", error);
+                showNotification("Firebase connection failed. Running offline.", "error");
+                return false;
+            }
+        }
+        
+        // ============================================
+        // FIREBASE REAL-TIME LISTENERS
+        // ============================================
+        function setupFirebaseListeners() {
+            if (!appState.firebaseInitialized) return;
+            
+            // Listen for materials updates
+            const materialsUnsubscribe = appState.db
+                .collection(APP_CONFIG.firestoreCollections.materials)
+                .onSnapshot((snapshot) => {
+                    const firebaseMaterials = [];
+                    snapshot.forEach(doc => {
+                        firebaseMaterials.push(doc.data().name);
+                    });
+                    
+                    // Merge with defaults (avoid duplicates)
+                    const allMaterials = [...APP_CONFIG.defaultMaterials];
+                    firebaseMaterials.forEach(mat => {
+                        if (!allMaterials.includes(mat)) {
+                            allMaterials.push(mat);
+                        }
+                    });
+                    
+                    appState.materials = allMaterials;
+                    renderMaterialGrid();
+                });
+            
+            // Listen for colours updates
+            const coloursUnsubscribe = appState.db
+                .collection(APP_CONFIG.firestoreCollections.colours)
+                .onSnapshot((snapshot) => {
+                    const firebaseColours = [];
+                    snapshot.forEach(doc => {
+                        firebaseColours.push(doc.data().name);
+                    });
+                    
+                    // Merge with defaults
+                    const allColours = [...APP_CONFIG.defaultColours];
+                    firebaseColours.forEach(col => {
+                        if (!allColours.includes(col)) {
+                            allColours.push(col);
+                        }
+                    });
+                    
+                    appState.colours = allColours;
+                    renderColourGrid();
+                });
+            
+            // Listen for batches updates
+            const batchesUnsubscribe = appState.db
+                .collection(APP_CONFIG.firestoreCollections.batches)
+                .orderBy('lastUpdated', 'desc')
+                .onSnapshot((snapshot) => {
+                    const batches = [];
+                    snapshot.forEach(doc => {
+                        batches.push({
+                            id: doc.id,
+                            ...doc.data()
+                        });
+                    });
+                    
+                    appState.batches = batches;
+                    updateAllDisplays();
+                    updateSyncStatus(true);
+                });
+            
+            // Store unsubscribe functions
+            appState.unsubscribeFunctions = [
+                materialsUnsubscribe,
+                coloursUnsubscribe,
+                batchesUnsubscribe
+            ];
+        }
+        
+        // ============================================
+        // DATA MANAGEMENT FUNCTIONS
+        // ============================================
+        async function saveEntry() {
+            // Validate inputs
+            if (!appState.selectedMaterial) {
+                showNotification("Please select a material", "error");
+                return;
+            }
+            
+            if (!appState.selectedColour) {
+                showNotification("Please select a colour", "error");
+                return;
+            }
+            
+            const weight = parseFloat(elements.weightInput.value);
+            if (!weight || weight <= 0 || isNaN(weight)) {
+                showNotification("Please enter a valid weight", "error");
+                elements.weightInput.focus();
+                return;
+            }
+            
+            try {
+                // Create entry object
+                const entry = {
+                    id: Date.now().toString(),
+                    material: appState.selectedMaterial,
+                    colour: appState.selectedColour,
+                    weight: parseFloat(weight.toFixed(2)),
+                    status: appState.selectedStatus,
+                    timestamp: new Date().toISOString(),
+                    deviceId: getDeviceId()
+                };
+                
+                // Save to local storage first
+                saveToLocalStorage(entry);
+                
+                // Find or create batch
+                const batchId = `${entry.colour}-${entry.material}`.toLowerCase().replace(/\s+/g, '-');
+                let batch = appState.batches.find(b => 
+                    b.id === batchId && b.status === entry.status
+                );
+                
+                if (!batch) {
+                    // Create new batch
+                    batch = {
+                        id: batchId,
+                        material: entry.material,
+                        colour: entry.colour,
+                        entries: [entry],
+                        totalWeight: entry.weight,
+                        status: entry.status,
+                        createdAt: new Date().toISOString(),
+                        lastUpdated: new Date().toISOString()
+                    };
+                    appState.batches.push(batch);
+                } else {
+                    // Update existing batch
+                    batch.entries.push(entry);
+                    batch.totalWeight = parseFloat((batch.totalWeight + entry.weight).toFixed(2));
+                    batch.lastUpdated = new Date().toISOString();
+                }
+                
+                // Save to Firebase if online
+                if (appState.firebaseInitialized && appState.isOnline) {
+                    await saveBatchToFirebase(batch);
+                } else {
+                    // Queue for sync
+                    queueForSync(batch);
+                }
+                
+                // Update UI
+                updateAllDisplays();
+                showNotification(`✅ ${entry.weight}kg ${entry.material} (${entry.colour}) saved as ${entry.status}`);
+                
+                // Clear form
+                clearForm();
+                
+            } catch (error) {
+                console.error("Save error:", error);
+                showNotification("Error saving entry", "error");
+            }
+        }
+        
+        async function saveBatchToFirebase(batch) {
+            if (!appState.firebaseInitialized) return;
+            
+            try {
+                await appState.db
+                    .collection(APP_CONFIG.firestoreCollections.batches)
+                    .doc(batch.id)
+                    .set(batch);
+                
+                console.log("Batch saved to Firebase:", batch.id);
+            } catch (error) {
+                console.error("Firebase save error:", error);
+                throw error;
+            }
+        }
+        
+        async function addNewMaterial(materialName) {
+            if (!materialName.trim()) {
+                showNotification("Please enter a material name", "error");
+                return;
+            }
+            
+            materialName = materialName.trim();
+            
+            // Check if already exists
+            if (appState.materials.includes(materialName)) {
+                showNotification("Material already exists", "error");
+                return;
+            }
+            
+            // Add to local state
+            appState.materials.push(materialName);
+            renderMaterialGrid();
+            
+            // Save to Firebase
+            if (appState.firebaseInitialized) {
+                try {
+                    await appState.db
+                        .collection(APP_CONFIG.firestoreCollections.materials)
+                        .doc(materialName.toLowerCase().replace(/\s+/g, '-'))
+                        .set({
+                            name: materialName,
+                            addedAt: new Date().toISOString(),
+                            addedBy: getDeviceId()
+                        });
+                    
+                    showNotification(`✅ New material "${materialName}" added`);
+                } catch (error) {
+                    console.error("Error saving material to Firebase:", error);
+                    showNotification("Material added locally", "error");
+                }
+            } else {
+                showNotification(`✅ New material "${materialName}" added locally`);
+            }
+            
+            // Close modal and select the new material
+            closeModal(elements.materialModal);
+            selectMaterial(materialName);
+        }
+        
+        async function addNewColour(colourName) {
+            if (!colourName.trim()) {
+                showNotification("Please enter a colour name", "error");
+                return;
+            }
+            
+            colourName = colourName.trim();
+            
+            // Check if already exists
+            if (appState.colours.includes(colourName)) {
+                showNotification("Colour already exists", "error");
+                return;
+            }
+            
+            // Add to local state
+            appState.colours.push(colourName);
+            renderColourGrid();
+            
+            // Save to Firebase
+            if (appState.firebaseInitialized) {
+                try {
+                    await appState.db
+                        .collection(APP_CONFIG.firestoreCollections.colours)
+                        .doc(colourName.toLowerCase().replace(/\s+/g, '-'))
+                        .set({
+                            name: colourName,
+                            addedAt: new Date().toISOString(),
+                            addedBy: getDeviceId()
+                        });
+                    
+                    showNotification(`✅ New colour "${colourName}" added`);
+                } catch (error) {
+                    console.error("Error saving colour to Firebase:", error);
+                    showNotification("Colour added locally", "error");
+                }
+            } else {
+                showNotification(`✅ New colour "${colourName}" added locally`);
+            }
+            
+            // Close modal and select the new colour
+            closeModal(elements.colourModal);
+            selectColour(colourName);
+        }
+        
+        async function updateBatchWeight(batchId, newWeight) {
+            const batch = appState.batches.find(b => b.id === batchId);
+            if (!batch) return;
+            
+            const oldWeight = batch.totalWeight;
+            batch.totalWeight = parseFloat(newWeight);
+            batch.lastUpdated = new Date().toISOString();
+            
+            // Update Firebase
+            if (appState.firebaseInitialized && appState.isOnline) {
+                try {
+                    await saveBatchToFirebase(batch);
+                    showNotification(`✅ Batch weight updated from ${oldWeight}kg to ${newWeight}kg`);
+                } catch (error) {
+                    showNotification("Error updating weight in cloud", "error");
+                }
+            } else {
+                queueForSync(batch);
+                showNotification(`✅ Weight updated locally (will sync when online)`);
+            }
+            
+            updateAllDisplays();
+            closeModal(elements.editWeightModal);
+        }
+        
+        async function markBatchAsFinished(batchId) {
+            const batch = appState.batches.find(b => b.id === batchId);
+            if (!batch) return;
+            
+            if (batch.status === 'finished') {
+                showNotification("Batch is already finished", "error");
+                return;
+            }
+            
+            if (!confirm(`Mark ${batch.colour} ${batch.material} (${batch.totalWeight}kg) as finished?`)) {
+                return;
+            }
+            
+            batch.status = 'finished';
+            batch.finishedAt = new Date().toISOString();
+            batch.lastUpdated = new Date().toISOString();
+            
+            // Update Firebase
+            if (appState.firebaseInitialized && appState.isOnline) {
+                try {
+                    await saveBatchToFirebase(batch);
+                    showNotification(`✅ Batch marked as finished`);
+                } catch (error) {
+                    showNotification("Error updating batch in cloud", "error");
+                }
+            } else {
+                queueForSync(batch);
+                showNotification(`✅ Batch marked as finished locally`);
+            }
+            
+            updateAllDisplays();
+        }
+        
+        // ============================================
+        // LOCAL STORAGE FUNCTIONS
+        // ============================================
+        function saveToLocalStorage(entry) {
+            try {
+                const entries = JSON.parse(localStorage.getItem('wastesort_entries') || '[]');
+                entries.push(entry);
+                localStorage.setItem('wastesort_entries', JSON.stringify(entries));
+                
+                // Save batches
+                localStorage.setItem('wastesort_batches', JSON.stringify(appState.batches));
+                
+                // Save materials and colours
+                localStorage.setItem('wastesort_materials', JSON.stringify(appState.materials));
+                localStorage.setItem('wastesort_colours', JSON.stringify(appState.colours));
+            } catch (error) {
+                console.error("LocalStorage error:", error);
+            }
+        }
+        
+        function loadFromLocalStorage() {
+            try {
+                const entries = JSON.parse(localStorage.getItem('wastesort_entries') || '[]');
+                const batches = JSON.parse(localStorage.getItem('wastesort_batches') || '[]');
+                const materials = JSON.parse(localStorage.getItem('wastesort_materials') || '[]');
+                const colours = JSON.parse(localStorage.getItem('wastesort_colours') || '[]');
+                
+                if (entries.length > 0) appState.entries = entries;
+                if (batches.length > 0) appState.batches = batches;
+                if (materials.length > 0) appState.materials = [...new Set([...APP_CONFIG.defaultMaterials, ...materials])];
+                if (colours.length > 0) appState.colours = [...new Set([...APP_CONFIG.defaultColours, ...colours])];
+                
+            } catch (error) {
+                console.error("LocalStorage load error:", error);
+            }
+        }
+        
+        // ============================================
+        // SYNC FUNCTIONS
+        // ============================================
+        function queueForSync(batch) {
+            appState.pendingSync.push({
+                type: 'batch_update',
+                data: batch,
+                timestamp: new Date().toISOString()
+            });
+            
+            localStorage.setItem('wastesort_pending_sync', JSON.stringify(appState.pendingSync));
+            updateSyncStatus(false);
+        }
+        
+        async function processPendingSync() {
+            if (!appState.firebaseInitialized || !appState.isOnline) return;
+            
+            if (appState.pendingSync.length === 0) return;
+            
+            try {
+                for (const item of appState.pendingSync) {
+                    if (item.type === 'batch_update') {
+                        await saveBatchToFirebase(item.data);
+                    }
+                }
+                
+                // Clear pending sync
+                appState.pendingSync = [];
+                localStorage.removeItem('wastesort_pending_sync');
+                updateSyncStatus(true);
+                
+                showNotification("✅ Pending changes synced to cloud");
+                
+            } catch (error) {
+                console.error("Sync error:", error);
+            }
+        }
+        
+        function updateSyncStatus(synced) {
+            if (synced) {
+                elements.syncDot.classList.remove('offline');
+                elements.syncText.textContent = 'Synced';
+                appState.lastSyncTime = new Date();
+                elements.lastSync.textContent = formatTime(appState.lastSyncTime);
+            } else {
+                elements.syncDot.classList.add('offline');
+                elements.syncText.textContent = 'Offline';
+                elements.syncStatus.title = `${appState.pendingSync.length} pending changes`;
+            }
+            
+            // Update badge for pending sync
+            if (appState.pendingSync.length > 0) {
+                elements.addBadge.textContent = appState.pendingSync.length;
+                elements.addBadge.style.display = 'block';
+            } else {
+                elements.addBadge.style.display = 'none';
+            }
+        }
+        
+        // ============================================
+        // UI RENDERING FUNCTIONS
+        // ============================================
+        function renderMaterialGrid() {
+            elements.materialGrid.innerHTML = '';
+            
+            appState.materials.forEach(material => {
+                const button = document.createElement('button');
+                button.className = 'grid-btn';
+                if (appState.selectedMaterial === material) {
+                    button.classList.add('selected');
+                }
+                button.textContent = material;
+                button.dataset.value = material;
+                button.addEventListener('click', () => selectMaterial(material));
+                elements.materialGrid.appendChild(button);
+            });
+        }
+        
+        function renderColourGrid() {
+            elements.colourGrid.innerHTML = '';
+            
+            appState.colours.forEach(colour => {
+                const button = document.createElement('button');
+                button.className = 'grid-btn';
+                if (appState.selectedColour === colour) {
+                    button.classList.add('selected');
+                }
+                button.textContent = colour;
+                button.dataset.value = colour;
+                button.addEventListener('click', () => selectColour(colour));
+                elements.colourGrid.appendChild(button);
+            });
+        }
+        
+        function renderBatchList(listElement, batches) {
+            if (batches.length === 0) {
+                listElement.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📭</div>
+                        <h3>No batches found</h3>
+                        <p>Add entries to see them here</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            
+            batches.forEach(batch => {
+                const isPending = batch.status === 'pending';
+                const date = new Date(batch.lastUpdated).toLocaleDateString();
+                const time = new Date(batch.lastUpdated).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                
+                html += `
+                    <div class="batch-card ${batch.status}">
+                        <div class="batch-header">
+                            <div class="batch-title">
+                                <span class="color-dot" style="background: ${getColorCode(batch.colour)}"></span>
+                                ${batch.colour} • ${batch.material}
+                            </div>
+                            <div class="batch-weight">
+                                ${batch.totalWeight.toFixed(1)} kg
+                            </div>
+                        </div>
+                        <div class="batch-details">
+                            <span>${batch.entries.length} entries</span>
+                            <span>Updated: ${date} ${time}</span>
+                        </div>
+                        <div class="batch-actions">
+                            <button class="action-small btn-edit" onclick="openEditWeightModal('${batch.id}')">
+                                ⚖️ Edit Weight
+                            </button>
+                            ${isPending ? `
+                                <button class="action-small btn-finish" onclick="markBatchAsFinished('${batch.id}')">
+                                    ✅ Mark Finished
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            listElement.innerHTML = html;
+        }
+        
+        function updateAllDisplays() {
+            // Filter batches
+            const pendingBatches = appState.batches.filter(b => b.status === 'pending');
+            const finishedBatches = appState.batches.filter(b => b.status === 'finished');
+            
+            // Update stats
+            const pendingTotal = pendingBatches.reduce((sum, b) => sum + b.totalWeight, 0);
+            const finishedTotal = finishedBatches.reduce((sum, b) => sum + b.totalWeight, 0);
+            const pendingEntries = pendingBatches.reduce((sum, b) => sum + b.entries.length, 0);
+            const finishedEntries = finishedBatches.reduce((sum, b) => sum + b.entries.length, 0);
+            
+            elements.pendingTotalWeight.textContent = pendingTotal.toFixed(1);
+            elements.pendingBatchesCount.textContent = pendingBatches.length;
+            elements.pendingItemsCount.textContent = pendingEntries;
+            elements.finishedTotalWeight.textContent = finishedTotal.toFixed(1);
+            elements.finishedBatchesCount.textContent = finishedBatches.length;
+            elements.finishedItemsCount.textContent = finishedEntries;
+            elements.totalEntries.textContent = appState.entries.length;
+            
+            // Update badges
+            elements.pendingBadge.textContent = pendingBatches.length;
+            elements.finishedBadge.textContent = finishedBatches.length;
+            
+            // Calculate storage used
+            const dataSize = JSON.stringify(appState).length;
+            const kb = (dataSize / 1024).toFixed(1);
+            elements.storageUsed.textContent = `${kb} KB`;
+            
+            // Render lists
+            renderBatchList(elements.pendingList, pendingBatches);
+            renderBatchList(elements.finishedList, finishedBatches);
+        }
+        
+        // ============================================
+        // UI INTERACTION FUNCTIONS
+        // ============================================
+        function selectMaterial(material) {
+            appState.selectedMaterial = material;
+            renderMaterialGrid();
+        }
+        
+        function selectColour(colour) {
+            appState.selectedColour = colour;
+            renderColourGrid();
+        }
+        
+        function clearForm() {
+            appState.selectedMaterial = null;
+            appState.selectedColour = null;
+            elements.weightInput.value = '';
+            renderMaterialGrid();
+            renderColourGrid();
+            
+            // Reset status to pending
+            elements.statusButtons.forEach(btn => {
+                btn.classList.remove('selected');
+                if (btn.dataset.status === 'pending') {
+                    btn.classList.add('selected');
+                    appState.selectedStatus = 'pending';
+                }
+            });
+        }
+        
+        function openModal(modal) {
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            
+            // Focus input
+            if (modal === elements.materialModal) {
+                elements.newMaterialInput.focus();
+            } else if (modal === elements.colourModal) {
+                elements.newColourInput.focus();
+            } else if (modal === elements.editWeightModal) {
+                elements.editWeightInput.focus();
+            }
+        }
+        
+        function closeModal(modal) {
+            modal.style.display = 'none';
+            document.body.style.overflow = 'auto';
+            
+            // Clear inputs
+            elements.newMaterialInput.value = '';
+            elements.newColourInput.value = '';
+            elements.editWeightInput.value = '';
+            appState.editingBatch = null;
+        }
+        
+        function openEditWeightModal(batchId) {
+            const batch = appState.batches.find(b => b.id === batchId);
+            if (!batch) return;
+            
+            appState.editingBatch = batch;
+            elements.editBatchTitle.textContent = `Edit weight for ${batch.colour} ${batch.material}`;
+            elements.editWeightInput.value = batch.totalWeight;
+            openModal(elements.editWeightModal);
+        }
+        
+        function showNotification(message, type = 'success') {
+            elements.notificationText.textContent = message;
+            elements.notification.className = 'notification';
+            
+            if (type === 'error') {
+                elements.notification.classList.add('error');
+            }
+            
+            elements.notification.style.display = 'block';
+            
+            setTimeout(() => {
+                elements.notification.style.display = 'none';
+            }, 3000);
+        }
+        
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+        function getDeviceId() {
+            let deviceId = localStorage.getItem('wastesort_device_id');
+            if (!deviceId) {
+                deviceId = 'device-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('wastesort_device_id', deviceId);
+            }
+            return deviceId;
+        }
+        
+        function getColorCode(colour) {
+            const colorMap = {
+                'red': '#e74c3c',
+                'orange': '#e67e22',
+                'yellow': '#f1c40f',
+                'green': '#2ecc71',
+                'white': '#ecf0f1',
+                'grey': '#95a5a6',
+                'black': '#2c3e50',
+                'blue': '#3498db',
+                'purple': '#9b59b6',
+                'pink': '#e84393',
+                'brown': '#8B4513',
+                'maroon': '#800000',
+                'teal': '#1abc9c',
+                'navy': '#2c3e50',
+                'olive': '#808000',
+                'lime': '#00ff00',
+                'cyan': '#00ffff',
+                'magenta': '#ff00ff'
+            };
+            
+            const lowerColour = colour.toLowerCase();
+            for (const [key, value] of Object.entries(colorMap)) {
+                if (lowerColour.includes(key)) {
+                    return value;
+                }
+            }
+            
+            // Generate a consistent color from the string
+            let hash = 0;
+            for (let i = 0; i < colour.length; i++) {
+                hash = colour.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            
+            const hue = hash % 360;
+            return `hsl(${hue}, 70%, 60%)`;
+        }
+        
+        function formatTime(date) {
+            if (!date) return '-';
+            return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+        
+        // ============================================
+        // EVENT LISTENERS SETUP
+        // ============================================
+        function setupEventListeners() {
+            // Tab switching
+            elements.tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabId = tab.dataset.tab;
+                    
+                    // Update tabs
+                    elements.tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    // Update contents
+                    elements.tabContents.forEach(content => {
+                        content.classList.remove('active');
+                        if (content.id === tabId) {
+                            content.classList.add('active');
+                        }
+                    });
+                });
+            });
+            
+            // Status buttons
+            elements.statusButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    elements.statusButtons.forEach(b => b.classList.remove('selected'));
+                    this.classList.add('selected');
+                    appState.selectedStatus = this.dataset.status;
+                });
+            });
+            
+            // Add material button
+            elements.addMaterialBtn.addEventListener('click', () => openModal(elements.materialModal));
+            
+            // Add colour button
+            elements.addColourBtn.addEventListener('click', () => openModal(elements.colourModal));
+            
+            // Clear form button
+            elements.clearBtn.addEventListener('click', clearForm);
+            
+            // Save entry button
+            elements.saveBtn.addEventListener('click', saveEntry);
+            
+            // Export button
+            elements.exportBtn.addEventListener('click', () => {
+                const data = {
+                    app: APP_CONFIG.appName,
+                    version: APP_CONFIG.version,
+                    exportedAt: new Date().toISOString(),
+                    batches: appState.batches,
+                    entries: appState.entries,
+                    materials: appState.materials,
+                    colours: appState.colours
+                };
+                
+                const dataStr = JSON.stringify(data, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `haji-ali-traders-backup-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                
+                showNotification('✅ Data exported successfully');
+            });
+            
+            // Import button
+            elements.importBtn.addEventListener('click', () => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                
+                input.onchange = async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    
+                    try {
+                        const text = await file.text();
+                        const data = JSON.parse(text);
+                        
+                        if (confirm(`Import ${data.batches?.length || 0} batches? This will replace current data.`)) {
+                            appState.batches = data.batches || [];
+                            appState.entries = data.entries || [];
+                            appState.materials = data.materials || APP_CONFIG.defaultMaterials;
+                            appState.colours = data.colours || APP_CONFIG.defaultColours;
+                            
+                            // Save to local storage
+                            localStorage.setItem('wastesort_batches', JSON.stringify(appState.batches));
+                            localStorage.setItem('wastesort_entries', JSON.stringify(appState.entries));
+                            localStorage.setItem('wastesort_materials', JSON.stringify(appState.materials));
+                            localStorage.setItem('wastesort_colours', JSON.stringify(appState.colours));
+                            
+                            updateAllDisplays();
+                            showNotification(`✅ ${data.batches?.length || 0} batches imported`);
+                        }
+                    } catch (error) {
+                        showNotification('Invalid backup file', 'error');
+                    }
+                };
+                
+                input.click();
+            });
+            
+            // Clear all button
+            elements.clearAllBtn.addEventListener('click', () => {
+                if (confirm('Delete ALL data? This cannot be undone!')) {
+                    localStorage.clear();
+                    appState.batches = [];
+                    appState.entries = [];
+                    appState.materials = [...APP_CONFIG.defaultMaterials];
+                    appState.colours = [...APP_CONFIG.defaultColours];
+                    appState.pendingSync = [];
+                    
+                    updateAllDisplays();
+                    clearForm();
+                    showNotification('✅ All data cleared');
+                }
+            });
+            
+            // Modal buttons
+            elements.saveMaterialBtn.addEventListener('click', () => addNewMaterial(elements.newMaterialInput.value));
+            elements.cancelMaterialBtn.addEventListener('click', () => closeModal(elements.materialModal));
+            elements.saveColourBtn.addEventListener('click', () => addNewColour(elements.newColourInput.value));
+            elements.cancelColourBtn.addEventListener('click', () => closeModal(elements.colourModal));
+            elements.saveEditBtn.addEventListener('click', () => {
+                if (appState.editingBatch) {
+                    updateBatchWeight(appState.editingBatch.id, elements.editWeightInput.value);
+                }
+            });
+            elements.cancelEditBtn.addEventListener('click', () => closeModal(elements.editWeightModal));
+            
+            // Close modals on overlay click
+            document.querySelectorAll('.modal-overlay').forEach(modal => {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        closeModal(modal);
+                    }
+                });
+            });
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeModal(elements.materialModal);
+                    closeModal(elements.colourModal);
+                    closeModal(elements.editWeightModal);
+                }
+                
+                if (e.key === 'Enter' && e.ctrlKey) {
+                    e.preventDefault();
+                    saveEntry();
+                }
+            });
+            
+            // Online/offline detection
+            window.addEventListener('online', () => {
+                appState.isOnline = true;
+                updateSyncStatus(true);
+                processPendingSync();
+            });
+            
+            window.addEventListener('offline', () => {
+                appState.isOnline = false;
+                updateSyncStatus(false);
+            });
+            
+            // Periodically check for sync
+            setInterval(() => {
+                if (appState.isOnline && appState.pendingSync.length > 0) {
+                    processPendingSync();
+                }
+            }, 30000); // Every 30 seconds
+        }
+        
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        async function initializeApp() {
+            // Load from local storage first
+            loadFromLocalStorage();
+            
+            // Initialize Firebase
+            await initializeFirebase();
+            
+            // Setup UI
+            renderMaterialGrid();
+            renderColourGrid();
+            updateAllDisplays();
+            
+            // Setup event listeners
+            setupEventListeners();
+            
+            // Initial sync status
+            updateSyncStatus(appState.isOnline && appState.pendingSync.length === 0);
+            
+            console.log("App initialized successfully");
+            showNotification("Welcome to Haji Ali Traders Waste Management", "success");
+        }
+        
+        // ============================================
+        // GLOBAL FUNCTIONS (for onclick handlers)
+        // ============================================
+        window.openEditWeightModal = openEditWeightModal;
+        window.markBatchAsFinished = markBatchAsFinished;
+        
+        // ============================================
+        // START THE APP
+        // ============================================
+        document.addEventListener('DOMContentLoaded', initializeApp);
+    </script>
+</body>
+</html>
