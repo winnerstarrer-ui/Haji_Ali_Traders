@@ -680,9 +680,201 @@
             font-size: 0.85rem;
             margin-top: 30px;
         }
+		.login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #27ae60 0%, #219653 100%);
+            z-index: 99999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .login-box {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        
+        .login-icon {
+            width: 80px;
+            height: 80px;
+            background: #d4edda;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 40px;
+            color: #27ae60;
+        }
+        
+        .login-title {
+            font-size: 1.8rem;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .login-subtitle {
+            color: #7f8c8d;
+            margin-bottom: 25px;
+            font-size: 1rem;
+        }
+        
+        .mobile-input {
+            width: 100%;
+            padding: 18px;
+            border: 3px solid #dfe6e9;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            text-align: center;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 15px 0;
+            letter-spacing: 2px;
+        }
+        
+        .mobile-input:focus {
+            border-color: #27ae60;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.2);
+        }
+        
+        .login-btn {
+            background: linear-gradient(135deg, #27ae60 0%, #219653 100%);
+            color: white;
+            border: none;
+            padding: 18px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+            transition: all 0.3s;
+        }
+        
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(39, 174, 96, 0.4);
+        }
+        
+        .public-access {
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 1px solid #dfe6e9;
+        }
+        
+        .public-btn {
+            background: transparent;
+            border: 2px solid #3498db;
+            color: #3498db;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+        
+        .public-btn:hover {
+            background: #3498db;
+            color: white;
+        }
+        
+        .user-indicator {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            background: rgba(255,255,255,0.95);
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            color: #2c3e50;
+            font-weight: 600;
+            z-index: 9999;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(39, 174, 96, 0.2);
+        }
+        
+        .switch-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 6px 15px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            margin-left: 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        
+        .user-indicator.edit-mode {
+            background: rgba(39, 174, 96, 0.1);
+            color: #27ae60;
+            border: 1px solid rgba(39, 174, 96, 0.3);
+        }
+        
+        .user-indicator.edit-mode::before {
+            content: "✏️ ";
+        }
+        
+        body.public-mode .btn-save,
+        body.public-mode .add-btn,
+        body.public-mode .btn-edit,
+        body.public-mode .btn-finish {
+            display: none !important;
+        }
+        
+        body.public-mode .grid-btn:not(.selected) {
+            opacity: 0.7;
+        }
+        
+        body.public-mode .status-btn:not(.selected) {
+            opacity: 0.7;
+        }
+        
+        body.public-mode .weight-input {
+            background: #f8f9fa;
+        }
     </style>
 </head>
 <body>
+
+<!-- === ADD THIS LOGIN CODE RIGHT HERE === -->
+<div id="loginOverlay" class="login-overlay">
+    <div class="login-box">
+        <div class="login-icon">🔐</div>
+        <h2 class="login-title">Haji Ali Traders</h2>
+        <p class="login-subtitle">Enter mobile number to edit</p>
+        
+        <input type="tel" id="mobileInput" class="mobile-input" 
+               placeholder="Enter 9370664141" maxlength="10" autocomplete="off">
+        
+        <button id="loginBtn" class="login-btn">Access Edit Mode</button>
+        
+        <div class="public-access">
+            <button id="publicViewBtn" class="public-btn">View Data Only (No Login)</button>
+        </div>
+    </div>
+</div>
+
+<div id="userIndicator" class="user-indicator" style="display: none;">
+    👁️ View Only <button class="switch-btn" id="switchToEditBtn">Switch to Edit</button>
+</div>
+<!-- === END LOGIN CODE === -->
+
+<!-- YOUR EXISTING APP CONTENT CONTINUES HERE -->
     <div class="container">
         <!-- Header -->
         <header class="app-header">

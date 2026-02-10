@@ -1,0 +1,8 @@
+{
+  "name": "haji-ali-traders",
+  "version": "1.0.0",
+  "description": "Waste sorting management app",
+  "scripts": {
+    "start": "echo 'No build needed - pure HTML app'"
+  }
+}
