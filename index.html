@@ -8,6 +8,7 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     
     <style>
         /* === VIBRANT ECO-GREEN THEME === */
@@ -680,201 +681,145 @@
             font-size: 0.85rem;
             margin-top: 30px;
         }
-		.login-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(135deg, #27ae60 0%, #219653 100%);
-            z-index: 99999;
+        
+        /* === LOGIN SYSTEM === */
+        .login-info {
             display: flex;
-            justify-content: center;
             align-items: center;
-            padding: 20px;
+            gap: 15px;
         }
         
-        .login-box {
-            background: white;
+        .login-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 15px;
+            background: rgba(255, 255, 255, 0.2);
             border-radius: 20px;
-            padding: 40px;
-            width: 100%;
-            max-width: 400px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
-            text-align: center;
+            font-size: 0.85rem;
         }
         
-        .login-icon {
-            width: 80px;
-            height: 80px;
-            background: #d4edda;
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            background: white;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 20px;
-            font-size: 40px;
-            color: #27ae60;
+            font-size: 16px;
+            color: var(--primary-green);
         }
         
-        .login-title {
-            font-size: 1.8rem;
-            color: #2c3e50;
-            margin-bottom: 10px;
-        }
-        
-        .login-subtitle {
-            color: #7f8c8d;
-            margin-bottom: 25px;
-            font-size: 1rem;
-        }
-        
-        .mobile-input {
-            width: 100%;
-            padding: 18px;
-            border: 3px solid #dfe6e9;
-            border-radius: 12px;
-            font-size: 1.2rem;
-            text-align: center;
-            font-weight: 600;
-            color: #2c3e50;
-            margin: 15px 0;
-            letter-spacing: 2px;
-        }
-        
-        .mobile-input:focus {
-            border-color: #27ae60;
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.2);
-        }
-        
-        .login-btn {
-            background: linear-gradient(135deg, #27ae60 0%, #219653 100%);
-            color: white;
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.3);
             border: none;
-            padding: 18px;
-            border-radius: 12px;
-            font-size: 1.1rem;
-            font-weight: 600;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
-            width: 100%;
-            margin: 10px 0;
+            font-size: 14px;
             transition: all 0.3s;
         }
         
-        .login-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(39, 174, 96, 0.4);
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.5);
         }
         
-        .public-access {
-            margin-top: 25px;
-            padding-top: 25px;
-            border-top: 1px solid #dfe6e9;
-        }
-        
-        .public-btn {
-            background: transparent;
-            border: 2px solid #3498db;
-            color: #3498db;
-            padding: 15px;
-            border-radius: 10px;
-            font-weight: 600;
-            cursor: pointer;
-            width: 100%;
-            font-size: 1rem;
-            transition: all 0.3s;
-        }
-        
-        .public-btn:hover {
-            background: #3498db;
+        .auth-btn {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
             color: white;
-        }
-        
-        .user-indicator {
-            position: fixed;
-            top: 15px;
-            right: 15px;
-            background: rgba(255,255,255,0.95);
-            padding: 12px 20px;
-            border-radius: 25px;
             font-size: 0.9rem;
-            color: #2c3e50;
-            font-weight: 600;
-            z-index: 9999;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(39, 174, 96, 0.2);
-        }
-        
-        .switch-btn {
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 6px 15px;
-            border-radius: 15px;
-            font-size: 0.8rem;
-            margin-left: 12px;
             cursor: pointer;
-            font-weight: 600;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         
-        .user-indicator.edit-mode {
-            background: rgba(39, 174, 96, 0.1);
-            color: #27ae60;
-            border: 1px solid rgba(39, 174, 96, 0.3);
+        .auth-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
         }
         
-        .user-indicator.edit-mode::before {
-            content: "✏️ ";
+        .view-only-message {
+            background: var(--light-green);
+            border: 2px solid var(--primary-green);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+            color: var(--dark-green);
         }
         
-        body.public-mode .btn-save,
-        body.public-mode .add-btn,
-        body.public-mode .btn-edit,
-        body.public-mode .btn-finish {
-            display: none !important;
+        .view-only-message i {
+            font-size: 1.2rem;
+            margin-right: 8px;
         }
         
-        body.public-mode .grid-btn:not(.selected) {
-            opacity: 0.7;
+        .disabled-for-view {
+            opacity: 0.6;
+            pointer-events: none;
         }
         
-        body.public-mode .status-btn:not(.selected) {
-            opacity: 0.7;
+        .otp-resend {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 0.85rem;
         }
         
-        body.public-mode .weight-input {
-            background: #f8f9fa;
+        .otp-resend a {
+            color: var(--primary-green);
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        
+        .otp-resend a:hover {
+            color: var(--dark-green);
+        }
+        
+        .access-info {
+            background: var(--light-green);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: var(--text-dark);
+        }
+        
+        .access-info h4 {
+            margin-bottom: 8px;
+            color: var(--dark-green);
+        }
+        
+        .login-prompt {
+            background: linear-gradient(135deg, var(--warning) 0%, #e67e22 100%);
+            padding: 15px;
+            border-radius: 12px;
+            color: white;
+            text-align: center;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .login-prompt:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(243, 156, 18, 0.3);
         }
     </style>
 </head>
 <body>
-
-<!-- === ADD THIS LOGIN CODE RIGHT HERE === -->
-<div id="loginOverlay" class="login-overlay">
-    <div class="login-box">
-        <div class="login-icon">🔐</div>
-        <h2 class="login-title">Haji Ali Traders</h2>
-        <p class="login-subtitle">Enter mobile number to edit</p>
-        
-        <input type="tel" id="mobileInput" class="mobile-input" 
-               placeholder="Enter mobile number" maxlength="10" autocomplete="off">
-        
-        <button id="loginBtn" class="login-btn">Access Edit Mode</button>
-        
-        <div class="public-access">
-            <button id="publicViewBtn" class="public-btn">View Data Only (No Login)</button>
-        </div>
-    </div>
-</div>
-
-<div id="userIndicator" class="user-indicator" style="display: none;">
-    👁️ View Only <button class="switch-btn" id="switchToEditBtn">Switch to Edit</button>
-</div>
-<!-- === END LOGIN CODE === -->
-
-<!-- YOUR EXISTING APP CONTENT CONTINUES HERE -->
     <div class="container">
         <!-- Header -->
         <header class="app-header">
@@ -886,9 +831,24 @@
                         <p>Waste Sorting & Inventory Management</p>
                     </div>
                 </div>
-                <div class="sync-status" id="syncStatus">
-                    <div class="sync-dot" id="syncDot"></div>
-                    <span id="syncText">Synced</span>
+                
+                <div class="login-info">
+                    <!-- Login status will appear here when logged in -->
+                    <div class="login-status" id="loginStatus" style="display: none;">
+                        <div class="user-avatar" id="userAvatar">👤</div>
+                        <span id="userMobile"></span>
+                        <button class="logout-btn" id="logoutBtn" title="Logout">🚪</button>
+                    </div>
+                    
+                    <!-- Login button for non-logged users -->
+                    <button class="auth-btn" id="loginBtn">
+                        🔒 Login to Edit
+                    </button>
+                    
+                    <div class="sync-status" id="syncStatus">
+                        <div class="sync-dot" id="syncDot"></div>
+                        <span id="syncText">Synced</span>
+                    </div>
                 </div>
             </div>
         </header>
@@ -916,6 +876,19 @@
         
         <!-- Main Content -->
         <main class="app-content">
+            <!-- View-Only Message (shown when not logged in) -->
+            <div id="viewOnlyMessage" class="view-only-message" style="display: none;">
+                <div>
+                    <span>👁️ <strong>View Only Mode</strong></span>
+                    <p style="margin-top: 8px; font-size: 0.9rem;">
+                        Login with mobile number to edit, add, or delete data
+                    </p>
+                    <button class="auth-btn" onclick="showLoginModal()" style="margin-top: 10px; color: var(--dark-green); background: white; border-color: white;">
+                        🔒 Login to Edit
+                    </button>
+                </div>
+            </div>
+            
             <!-- Add Entry Tab -->
             <div class="tab-content active" id="add">
                 <!-- Material Selection -->
@@ -1127,6 +1100,41 @@
             </div>
         </div>
         
+        <!-- Login Modal -->
+        <div class="modal-overlay" id="loginModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h2>🔒 Login Required</h2>
+                    <p>Enter mobile number to access edit features</p>
+                </div>
+                <div class="modal-body">
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600;">📱 Mobile Number</label>
+                        <input type="tel" class="modal-input" id="mobileNumber" 
+                               placeholder="Enter 10-digit mobile number" maxlength="10">
+                    </div>
+                    
+                    <div id="otpSection" style="margin-bottom: 20px; display: none;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600;">🔑 OTP</label>
+                        <input type="text" class="modal-input" id="otpInput" 
+                               placeholder="Enter 6-digit OTP" maxlength="6">
+                    </div>
+                    
+                    <div class="modal-actions">
+                        <button class="modal-btn btn-cancel" id="cancelLoginBtn">Cancel</button>
+                        <button class="modal-btn btn-submit" id="sendOtpBtn">Send OTP</button>
+                        <button class="modal-btn btn-submit" id="verifyOtpBtn" style="display: none;">Verify OTP</button>
+                    </div>
+                    
+                    <div class="access-info">
+                        <h4>Access Levels:</h4>
+                        <p>• <strong>Without login:</strong> View data only</p>
+                        <p>• <strong>With login (9370664141):</strong> View, edit, add, delete all data</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <!-- Notification -->
         <div class="notification" id="notification">
             <span id="notificationText">Entry saved successfully!</span>
@@ -1138,15 +1146,14 @@
         // ============================================
         // FIREBASE CONFIGURATION
         // ============================================
-        // ⚠️ REPLACE WITH YOUR FIREBASE CONFIG ⚠️
         const firebaseConfig = {
-  apiKey: "AIzaSyByCMBxi1YkvRZpiPELxZwXETcCI0EUwP0",
-  authDomain: "haji-ali-traders-ed7cc.firebaseapp.com",
-  projectId: "haji-ali-traders-ed7cc",
-  storageBucket: "haji-ali-traders-ed7cc.firebasestorage.app",
-  messagingSenderId: "746078974269",
-  appId: "1:746078974269:web:55c1f37a9a11c8b887d554"
-};
+            apiKey: "AIzaSyByCMBxi1YkvRZpiPELxZwXETcCI0EUwP0",
+            authDomain: "haji-ali-traders-ed7cc.firebaseapp.com",
+            projectId: "haji-ali-traders-ed7cc",
+            storageBucket: "haji-ali-traders-ed7cc.firebasestorage.app",
+            messagingSenderId: "746078974269",
+            appId: "1:746078974269:web:55c1f37a9a11c8b887d554"
+        };
         
         // ============================================
         // APP CONFIGURATION
@@ -1164,7 +1171,11 @@
                 materials: "material_list",
                 colours: "colour_list",
                 settings: "app_settings"
-            }
+            },
+            // Authorized mobile number for login
+            authorizedMobile: "9370664141",
+            // Simple OTP for demo (in production, use Firebase Auth or SMS service)
+            demoOtp: "123456"
         };
         
         // ============================================
@@ -1193,7 +1204,14 @@
             pendingSync: [],
             
             // Current batch being edited
-            editingBatch: null
+            editingBatch: null,
+            
+            // Auth state
+            isLoggedIn: false,
+            user: null,
+            currentMobile: null,
+            otp: null,
+            otpExpiry: null
         };
         
         // ============================================
@@ -1219,6 +1237,8 @@
             exportBtn: document.getElementById('exportBtn'),
             importBtn: document.getElementById('importBtn'),
             clearAllBtn: document.getElementById('clearAllBtn'),
+            loginBtn: document.getElementById('loginBtn'),
+            logoutBtn: document.getElementById('logoutBtn'),
             
             // Status buttons
             statusButtons: document.querySelectorAll('.status-btn'),
@@ -1227,6 +1247,7 @@
             materialModal: document.getElementById('materialModal'),
             colourModal: document.getElementById('colourModal'),
             editWeightModal: document.getElementById('editWeightModal'),
+            loginModal: document.getElementById('loginModal'),
             
             // Modal buttons
             saveMaterialBtn: document.getElementById('saveMaterialBtn'),
@@ -1235,12 +1256,17 @@
             cancelColourBtn: document.getElementById('cancelColourBtn'),
             saveEditBtn: document.getElementById('saveEditBtn'),
             cancelEditBtn: document.getElementById('cancelEditBtn'),
+            sendOtpBtn: document.getElementById('sendOtpBtn'),
+            verifyOtpBtn: document.getElementById('verifyOtpBtn'),
+            cancelLoginBtn: document.getElementById('cancelLoginBtn'),
             
             // Modal inputs
             newMaterialInput: document.getElementById('newMaterialInput'),
             newColourInput: document.getElementById('newColourInput'),
             editWeightInput: document.getElementById('editWeightInput'),
             editBatchTitle: document.getElementById('editBatchTitle'),
+            mobileNumber: document.getElementById('mobileNumber'),
+            otpInput: document.getElementById('otpInput'),
             
             // Lists
             pendingList: document.getElementById('pendingList'),
@@ -1267,10 +1293,225 @@
             syncText: document.getElementById('syncText'),
             syncStatus: document.getElementById('syncStatus'),
             
+            // Login status
+            loginStatus: document.getElementById('loginStatus'),
+            userAvatar: document.getElementById('userAvatar'),
+            userMobile: document.getElementById('userMobile'),
+            
             // Notification
             notification: document.getElementById('notification'),
-            notificationText: document.getElementById('notificationText')
+            notificationText: document.getElementById('notificationText'),
+            
+            // View only message
+            viewOnlyMessage: document.getElementById('viewOnlyMessage'),
+            
+            // OTP section
+            otpSection: document.getElementById('otpSection')
         };
+        
+        // ============================================
+        // AUTHENTICATION FUNCTIONS
+        // ============================================
+        function showLoginModal() {
+            openModal(elements.loginModal);
+            elements.mobileNumber.focus();
+            elements.otpSection.style.display = 'none';
+            elements.sendOtpBtn.style.display = 'block';
+            elements.verifyOtpBtn.style.display = 'none';
+            elements.mobileNumber.value = '';
+            elements.otpInput.value = '';
+        }
+        
+        function sendOTP() {
+            const mobile = elements.mobileNumber.value.trim();
+            
+            if (!mobile || mobile.length !== 10 || !/^\d+$/.test(mobile)) {
+                showNotification("Please enter a valid 10-digit mobile number", "error");
+                return;
+            }
+            
+            // Check if the mobile number is authorized
+            if (mobile !== APP_CONFIG.authorizedMobile) {
+                showNotification("Access denied. This mobile number is not authorized.", "error");
+                return;
+            }
+            
+            // For demo purposes, we'll use a fixed OTP
+            // In production, you would send an actual OTP via SMS
+            appState.currentMobile = mobile;
+            appState.otp = APP_CONFIG.demoOtp; // Using demo OTP
+            appState.otpExpiry = Date.now() + (5 * 60 * 1000); // 5 minutes
+            
+            // Show OTP section
+            elements.otpSection.style.display = 'block';
+            elements.sendOtpBtn.style.display = 'none';
+            elements.verifyOtpBtn.style.display = 'block';
+            elements.otpInput.focus();
+            
+            showNotification(`OTP sent to ${mobile}. Demo OTP: ${APP_CONFIG.demoOtp}`);
+        }
+        
+        function verifyOTP() {
+            const enteredOtp = elements.otpInput.value.trim();
+            
+            if (!enteredOtp || enteredOtp.length !== 6 || !/^\d+$/.test(enteredOtp)) {
+                showNotification("Please enter a valid 6-digit OTP", "error");
+                return;
+            }
+            
+            if (Date.now() > appState.otpExpiry) {
+                showNotification("OTP has expired. Please request a new one.", "error");
+                elements.otpSection.style.display = 'none';
+                elements.sendOtpBtn.style.display = 'block';
+                elements.verifyOtpBtn.style.display = 'none';
+                return;
+            }
+            
+            if (enteredOtp === appState.otp) {
+                // Login successful
+                appState.isLoggedIn = true;
+                appState.user = {
+                    mobile: appState.currentMobile,
+                    loggedInAt: new Date().toISOString()
+                };
+                
+                // Save login state to localStorage
+                localStorage.setItem('wastesort_auth', JSON.stringify(appState.user));
+                
+                // Update UI
+                updateLoginUI();
+                closeModal(elements.loginModal);
+                
+                // Enable editing features
+                setEditMode(true);
+                
+                showNotification(`✅ Logged in successfully as ${appState.currentMobile}`);
+                
+            } else {
+                showNotification("Invalid OTP. Please try again.", "error");
+                elements.otpInput.value = '';
+                elements.otpInput.focus();
+            }
+        }
+        
+        function logout() {
+            if (confirm("Are you sure you want to logout?")) {
+                appState.isLoggedIn = false;
+                appState.user = null;
+                
+                // Clear auth data from localStorage
+                localStorage.removeItem('wastesort_auth');
+                
+                // Update UI
+                updateLoginUI();
+                
+                // Disable editing features
+                setEditMode(false);
+                
+                showNotification("Logged out successfully");
+            }
+        }
+        
+        function updateLoginUI() {
+            if (appState.isLoggedIn) {
+                // Show login status
+                elements.loginStatus.style.display = 'flex';
+                elements.userMobile.textContent = appState.user.mobile;
+                
+                // Hide login button
+                elements.loginBtn.style.display = 'none';
+                
+                // Hide view-only message
+                elements.viewOnlyMessage.style.display = 'none';
+                
+            } else {
+                // Hide login status
+                elements.loginStatus.style.display = 'none';
+                
+                // Show login button
+                elements.loginBtn.style.display = 'flex';
+                
+                // Show view-only message
+                elements.viewOnlyMessage.style.display = 'block';
+            }
+        }
+        
+        function setEditMode(enabled) {
+            const editElements = [
+                elements.saveBtn,
+                elements.clearBtn,
+                elements.addMaterialBtn,
+                elements.addColourBtn,
+                elements.clearAllBtn,
+                elements.importBtn,
+                elements.weightInput
+            ];
+            
+            if (enabled) {
+                // Enable editing
+                editElements.forEach(el => {
+                    if (el) el.classList.remove('disabled-for-view');
+                });
+                
+                // Enable all edit buttons in batch cards
+                const editButtons = document.querySelectorAll('.btn-edit, .btn-finish');
+                editButtons.forEach(btn => {
+                    btn.classList.remove('disabled-for-view');
+                });
+                
+                // Enable status buttons
+                elements.statusButtons.forEach(btn => {
+                    btn.classList.remove('disabled-for-view');
+                });
+                
+                // Enable grid buttons
+                const gridButtons = document.querySelectorAll('.grid-btn');
+                gridButtons.forEach(btn => {
+                    btn.classList.remove('disabled-for-view');
+                });
+                
+            } else {
+                // Disable editing
+                editElements.forEach(el => {
+                    if (el) el.classList.add('disabled-for-view');
+                });
+                
+                // Disable all edit buttons in batch cards
+                const editButtons = document.querySelectorAll('.btn-edit, .btn-finish');
+                editButtons.forEach(btn => {
+                    btn.classList.add('disabled-for-view');
+                });
+                
+                // Disable status buttons
+                elements.statusButtons.forEach(btn => {
+                    btn.classList.add('disabled-for-view');
+                });
+                
+                // Disable grid buttons (except they should still be selectable for viewing)
+                // We'll leave grid buttons enabled for selection viewing
+            }
+        }
+        
+        function checkAuthState() {
+            const savedAuth = localStorage.getItem('wastesort_auth');
+            
+            if (savedAuth) {
+                try {
+                    const authData = JSON.parse(savedAuth);
+                    appState.isLoggedIn = true;
+                    appState.user = authData;
+                    updateLoginUI();
+                    setEditMode(true);
+                } catch (error) {
+                    console.error("Error parsing auth data:", error);
+                    appState.isLoggedIn = false;
+                    setEditMode(false);
+                }
+            } else {
+                appState.isLoggedIn = false;
+                setEditMode(false);
+            }
+        }
         
         // ============================================
         // FIREBASE INITIALIZATION
@@ -1387,6 +1628,13 @@
         // DATA MANAGEMENT FUNCTIONS
         // ============================================
         async function saveEntry() {
+            // Check if user is logged in
+            if (!appState.isLoggedIn) {
+                showNotification("Please login to add entries", "error");
+                showLoginModal();
+                return;
+            }
+            
             // Validate inputs
             if (!appState.selectedMaterial) {
                 showNotification("Please select a material", "error");
@@ -1414,7 +1662,8 @@
                     weight: parseFloat(weight.toFixed(2)),
                     status: appState.selectedStatus,
                     timestamp: new Date().toISOString(),
-                    deviceId: getDeviceId()
+                    deviceId: getDeviceId(),
+                    addedBy: appState.user.mobile
                 };
                 
                 // Save to local storage first
@@ -1436,7 +1685,8 @@
                         totalWeight: entry.weight,
                         status: entry.status,
                         createdAt: new Date().toISOString(),
-                        lastUpdated: new Date().toISOString()
+                        lastUpdated: new Date().toISOString(),
+                        createdBy: appState.user.mobile
                     };
                     appState.batches.push(batch);
                 } else {
@@ -1444,6 +1694,7 @@
                     batch.entries.push(entry);
                     batch.totalWeight = parseFloat((batch.totalWeight + entry.weight).toFixed(2));
                     batch.lastUpdated = new Date().toISOString();
+                    batch.updatedBy = appState.user.mobile;
                 }
                 
                 // Save to Firebase if online
@@ -1484,6 +1735,13 @@
         }
         
         async function addNewMaterial(materialName) {
+            // Check if user is logged in
+            if (!appState.isLoggedIn) {
+                showNotification("Please login to add materials", "error");
+                showLoginModal();
+                return;
+            }
+            
             if (!materialName.trim()) {
                 showNotification("Please enter a material name", "error");
                 return;
@@ -1510,7 +1768,7 @@
                         .set({
                             name: materialName,
                             addedAt: new Date().toISOString(),
-                            addedBy: getDeviceId()
+                            addedBy: appState.user.mobile
                         });
                     
                     showNotification(`✅ New material "${materialName}" added`);
@@ -1528,6 +1786,13 @@
         }
         
         async function addNewColour(colourName) {
+            // Check if user is logged in
+            if (!appState.isLoggedIn) {
+                showNotification("Please login to add colours", "error");
+                showLoginModal();
+                return;
+            }
+            
             if (!colourName.trim()) {
                 showNotification("Please enter a colour name", "error");
                 return;
@@ -1554,7 +1819,7 @@
                         .set({
                             name: colourName,
                             addedAt: new Date().toISOString(),
-                            addedBy: getDeviceId()
+                            addedBy: appState.user.mobile
                         });
                     
                     showNotification(`✅ New colour "${colourName}" added`);
@@ -1572,12 +1837,20 @@
         }
         
         async function updateBatchWeight(batchId, newWeight) {
+            // Check if user is logged in
+            if (!appState.isLoggedIn) {
+                showNotification("Please login to edit weights", "error");
+                showLoginModal();
+                return;
+            }
+            
             const batch = appState.batches.find(b => b.id === batchId);
             if (!batch) return;
             
             const oldWeight = batch.totalWeight;
             batch.totalWeight = parseFloat(newWeight);
             batch.lastUpdated = new Date().toISOString();
+            batch.updatedBy = appState.user.mobile;
             
             // Update Firebase
             if (appState.firebaseInitialized && appState.isOnline) {
@@ -1597,6 +1870,13 @@
         }
         
         async function markBatchAsFinished(batchId) {
+            // Check if user is logged in
+            if (!appState.isLoggedIn) {
+                showNotification("Please login to mark batches as finished", "error");
+                showLoginModal();
+                return;
+            }
+            
             const batch = appState.batches.find(b => b.id === batchId);
             if (!batch) return;
             
@@ -1612,6 +1892,7 @@
             batch.status = 'finished';
             batch.finishedAt = new Date().toISOString();
             batch.lastUpdated = new Date().toISOString();
+            batch.finishedBy = appState.user.mobile;
             
             // Update Firebase
             if (appState.firebaseInitialized && appState.isOnline) {
@@ -1885,6 +2166,8 @@
                 elements.newColourInput.focus();
             } else if (modal === elements.editWeightModal) {
                 elements.editWeightInput.focus();
+            } else if (modal === elements.loginModal) {
+                elements.mobileNumber.focus();
             }
         }
         
@@ -1900,6 +2183,13 @@
         }
         
         function openEditWeightModal(batchId) {
+            // Check if user is logged in
+            if (!appState.isLoggedIn) {
+                showNotification("Please login to edit weights", "error");
+                showLoginModal();
+                return;
+            }
+            
             const batch = appState.batches.find(b => b.id === batchId);
             if (!batch) return;
             
@@ -2050,6 +2340,13 @@
             
             // Import button
             elements.importBtn.addEventListener('click', () => {
+                // Check if user is logged in
+                if (!appState.isLoggedIn) {
+                    showNotification("Please login to import data", "error");
+                    showLoginModal();
+                    return;
+                }
+                
                 const input = document.createElement('input');
                 input.type = 'file';
                 input.accept = '.json';
@@ -2087,6 +2384,13 @@
             
             // Clear all button
             elements.clearAllBtn.addEventListener('click', () => {
+                // Check if user is logged in
+                if (!appState.isLoggedIn) {
+                    showNotification("Please login to clear data", "error");
+                    showLoginModal();
+                    return;
+                }
+                
                 if (confirm('Delete ALL data? This cannot be undone!')) {
                     localStorage.clear();
                     appState.batches = [];
@@ -2113,6 +2417,44 @@
             });
             elements.cancelEditBtn.addEventListener('click', () => closeModal(elements.editWeightModal));
             
+            // Login buttons
+            elements.loginBtn.addEventListener('click', showLoginModal);
+            elements.logoutBtn.addEventListener('click', logout);
+            elements.sendOtpBtn.addEventListener('click', sendOTP);
+            elements.verifyOtpBtn.addEventListener('click', verifyOTP);
+            elements.cancelLoginBtn.addEventListener('click', () => closeModal(elements.loginModal));
+            
+            // OTP input - auto submit on 6 digits
+            elements.otpInput.addEventListener('input', function() {
+                if (this.value.length === 6) {
+                    verifyOTP();
+                }
+            });
+            
+            // Mobile input - allow only numbers
+            elements.mobileNumber.addEventListener('input', function() {
+                this.value = this.value.replace(/\D/g, '').slice(0, 10);
+            });
+            
+            // OTP input - allow only numbers
+            elements.otpInput.addEventListener('input', function() {
+                this.value = this.value.replace(/\D/g, '').slice(0, 6);
+            });
+            
+            // Enter key in mobile number field
+            elements.mobileNumber.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendOTP();
+                }
+            });
+            
+            // Enter key in OTP field
+            elements.otpInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    verifyOTP();
+                }
+            });
+            
             // Close modals on overlay click
             document.querySelectorAll('.modal-overlay').forEach(modal => {
                 modal.addEventListener('click', (e) => {
@@ -2128,6 +2470,7 @@
                     closeModal(elements.materialModal);
                     closeModal(elements.colourModal);
                     closeModal(elements.editWeightModal);
+                    closeModal(elements.loginModal);
                 }
                 
                 if (e.key === 'Enter' && e.ctrlKey) {
@@ -2163,6 +2506,9 @@
             // Load from local storage first
             loadFromLocalStorage();
             
+            // Check auth state
+            checkAuthState();
+            
             // Initialize Firebase
             await initializeFirebase();
             
@@ -2178,7 +2524,12 @@
             updateSyncStatus(appState.isOnline && appState.pendingSync.length === 0);
             
             console.log("App initialized successfully");
-            showNotification("Welcome to Haji Ali Traders Waste Management", "success");
+            
+            if (!appState.isLoggedIn) {
+                showNotification("🔒 You're in view-only mode. Login to edit data.", "error");
+            } else {
+                showNotification(`Welcome back, ${appState.user.mobile}!`, "success");
+            }
         }
         
         // ============================================
@@ -2186,6 +2537,7 @@
         // ============================================
         window.openEditWeightModal = openEditWeightModal;
         window.markBatchAsFinished = markBatchAsFinished;
+        window.showLoginModal = showLoginModal;
         
         // ============================================
         // START THE APP
