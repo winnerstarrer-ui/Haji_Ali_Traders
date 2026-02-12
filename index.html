@@ -10,6 +10,11 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     
+    <!-- Export Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    
     <style>
         /* === VIBRANT ECO-GREEN THEME === */
         :root {
@@ -231,6 +236,19 @@
         @media (max-width: 480px) {
             .button-grid {
                 grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        .backup-button-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin: 20px 0;
+        }
+        
+        @media (max-width: 768px) {
+            .backup-button-grid {
+                grid-template-columns: repeat(1, 1fr);
             }
         }
         
@@ -787,6 +805,72 @@
             transform: translateY(-2px);
             box-shadow: 0 6px 15px rgba(243, 156, 18, 0.3);
         }
+        
+        /* === Export Options === */
+        .export-options {
+            margin-top: 20px;
+            padding: 20px;
+            background: var(--light-green);
+            border-radius: 15px;
+        }
+        
+        .export-options h3 {
+            color: var(--dark-green);
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+        
+        .export-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .export-btn {
+            flex: 1;
+            min-width: 140px;
+            padding: 12px 15px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            background: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .btn-pdf {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            border-color: #e74c3c;
+        }
+        
+        .btn-excel {
+            background: linear-gradient(135deg, #27ae60 0%, #219653 100%);
+            color: white;
+            border-color: #27ae60;
+        }
+        
+        .btn-summary {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border-color: #3498db;
+        }
+        
+        .btn-details {
+            background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
+            color: white;
+            border-color: #9b59b6;
+        }
     </style>
 </head>
 <body>
@@ -838,7 +922,7 @@
                     <span class="tab-badge" id="finishedBadge">0</span>
                 </div>
                 <div class="tab" data-tab="backup">
-                    💾 Backup
+                    💾 Backup & Export
                 </div>
             </div>
         </div>
@@ -966,7 +1050,7 @@
                 </div>
             </div>
             
-            <!-- Backup Tab -->
+            <!-- Backup & Export Tab -->
             <div class="tab-content" id="backup">
                 <div class="card">
                     <div class="stats-grid">
@@ -984,15 +1068,31 @@
                         </div>
                     </div>
                     
-                    <div class="button-grid" style="margin: 25px 0;">
+                    <!-- Export Section -->
+                    <div class="export-options">
+                        <h3>📤 Export Reports</h3>
+                        <div class="export-buttons">
+                            <button class="export-btn btn-pdf" id="exportPdfBtn">
+                                📄 PDF Summary
+                            </button>
+                            <button class="export-btn btn-excel" id="exportExcelBtn">
+                                📊 Excel Full Data
+                            </button>
+                            <button class="export-btn btn-summary" id="exportSummaryBtn">
+                                📈 Stats Report
+                            </button>
+                            <button class="export-btn btn-details" id="exportDetailsBtn">
+                                📋 Detailed Report
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="backup-button-grid">
                         <button class="grid-btn" id="exportBtn" style="background: var(--finished); color: white;">
-                            <span>⬇️</span> Export Data
+                            <span>⬇️</span> Export JSON Backup
                         </button>
                         <button class="grid-btn" id="importBtn" style="background: var(--accent-teal); color: white;">
-                            <span>⬆️</span> Import Data
-                        </button>
-                        <button class="grid-btn" id="clearAllBtn" style="background: var(--error); color: white;">
-                            <span>🗑️</span> Clear All
+                            <span>⬆️</span> Import JSON Backup
                         </button>
                     </div>
                     
@@ -1002,6 +1102,7 @@
                             • Data saved locally and synced to cloud<br>
                             • Works completely offline<br>
                             • Real-time updates across all devices<br>
+                            • Export reports in PDF & Excel formats<br>
                             • Add new colours/materials as needed
                         </p>
                     </div>
@@ -1191,6 +1292,12 @@
             loginBtn: document.getElementById('loginBtn'),
             logoutBtn: document.getElementById('logoutBtn'),
             
+            // Export buttons
+            exportPdfBtn: document.getElementById('exportPdfBtn'),
+            exportExcelBtn: document.getElementById('exportExcelBtn'),
+            exportSummaryBtn: document.getElementById('exportSummaryBtn'),
+            exportDetailsBtn: document.getElementById('exportDetailsBtn'),
+            
             // Status buttons
             statusButtons: document.querySelectorAll('.status-btn'),
             
@@ -1254,6 +1361,248 @@
             // View only message
             viewOnlyMessage: document.getElementById('viewOnlyMessage')
         };
+        
+        // ============================================
+        // EXPORT FUNCTIONS
+        // ============================================
+        function exportToPDF(type = 'summary') {
+            if (!appState.isLoggedIn && type !== 'summary') {
+                showNotification("Please login to export detailed data", "error");
+                showLoginModal();
+                return;
+            }
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Header
+            doc.setFontSize(20);
+            doc.setTextColor(39, 174, 96);
+            doc.text('Haji Ali Traders', 105, 20, { align: 'center' });
+            
+            doc.setFontSize(14);
+            doc.setTextColor(128, 128, 128);
+            doc.text('Waste Sorting & Inventory Report', 105, 28, { align: 'center' });
+            
+            doc.setFontSize(10);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 105, 35, { align: 'center' });
+            
+            let yPos = 45;
+            
+            if (type === 'summary') {
+                // Summary Report
+                doc.setFontSize(16);
+                doc.setTextColor(0, 0, 0);
+                doc.text('Summary Report', 20, yPos);
+                yPos += 10;
+                
+                const pendingBatches = appState.batches.filter(b => b.status === 'pending');
+                const finishedBatches = appState.batches.filter(b => b.status === 'finished');
+                const pendingTotal = pendingBatches.reduce((sum, b) => sum + b.totalWeight, 0);
+                const finishedTotal = finishedBatches.reduce((sum, b) => sum + b.totalWeight, 0);
+                
+                doc.setFontSize(12);
+                doc.text(`Total Batches: ${appState.batches.length}`, 20, yPos);
+                yPos += 7;
+                doc.text(`Pending Stock: ${pendingBatches.length} batches (${pendingTotal.toFixed(1)} kg)`, 20, yPos);
+                yPos += 7;
+                doc.text(`Finished Stock: ${finishedBatches.length} batches (${finishedTotal.toFixed(1)} kg)`, 20, yPos);
+                yPos += 7;
+                doc.text(`Total Weight: ${(pendingTotal + finishedTotal).toFixed(1)} kg`, 20, yPos);
+                yPos += 15;
+                
+                // Batch Summary
+                doc.setFontSize(14);
+                doc.text('Batch Summary', 20, yPos);
+                yPos += 10;
+                
+                const tableData = appState.batches.map(batch => [
+                    batch.colour,
+                    batch.material,
+                    batch.status,
+                    `${batch.totalWeight.toFixed(1)} kg`,
+                    batch.entries.length,
+                    new Date(batch.lastUpdated).toLocaleDateString()
+                ]);
+                
+                doc.autoTable({
+                    startY: yPos,
+                    head: [['Colour', 'Material', 'Status', 'Weight', 'Entries', 'Last Updated']],
+                    body: tableData,
+                    theme: 'grid',
+                    headStyles: { fillColor: [39, 174, 96] }
+                });
+                
+            } else if (type === 'details') {
+                // Detailed Report
+                doc.setFontSize(16);
+                doc.setTextColor(0, 0, 0);
+                doc.text('Detailed Inventory Report', 20, yPos);
+                yPos += 10;
+                
+                // Group by material and colour
+                const groupedData = {};
+                appState.batches.forEach(batch => {
+                    const key = `${batch.material}-${batch.colour}`;
+                    if (!groupedData[key]) {
+                        groupedData[key] = {
+                            material: batch.material,
+                            colour: batch.colour,
+                            pending: 0,
+                            finished: 0,
+                            total: 0
+                        };
+                    }
+                    
+                    if (batch.status === 'pending') {
+                        groupedData[key].pending += batch.totalWeight;
+                    } else {
+                        groupedData[key].finished += batch.totalWeight;
+                    }
+                    groupedData[key].total += batch.totalWeight;
+                });
+                
+                const tableData = Object.values(groupedData).map(item => [
+                    item.material,
+                    item.colour,
+                    `${item.pending.toFixed(1)} kg`,
+                    `${item.finished.toFixed(1)} kg`,
+                    `${item.total.toFixed(1)} kg`
+                ]);
+                
+                doc.autoTable({
+                    startY: yPos,
+                    head: [['Material', 'Colour', 'Pending', 'Finished', 'Total']],
+                    body: tableData,
+                    theme: 'grid',
+                    headStyles: { fillColor: [39, 174, 96] }
+                });
+            }
+            
+            // Save PDF
+            doc.save(`Haji_Ali_Traders_${type}_${new Date().toISOString().split('T')[0]}.pdf`);
+            showNotification(`✅ PDF exported successfully`);
+        }
+        
+        function exportToExcel(type = 'full') {
+            if (!appState.isLoggedIn) {
+                showNotification("Please login to export Excel data", "error");
+                showLoginModal();
+                return;
+            }
+            
+            let workbook = XLSX.utils.book_new();
+            
+            if (type === 'full' || type === 'details') {
+                // Main Data Sheet
+                const mainData = appState.batches.map(batch => ({
+                    'Batch ID': batch.id,
+                    'Material': batch.material,
+                    'Colour': batch.colour,
+                    'Status': batch.status.charAt(0).toUpperCase() + batch.status.slice(1),
+                    'Total Weight (kg)': batch.totalWeight,
+                    'Number of Entries': batch.entries.length,
+                    'Created Date': new Date(batch.createdAt).toLocaleDateString(),
+                    'Last Updated': new Date(batch.lastUpdated).toLocaleDateString(),
+                    'Created By': batch.createdBy || 'N/A',
+                    'Updated By': batch.updatedBy || 'N/A'
+                }));
+                
+                const ws1 = XLSX.utils.json_to_sheet(mainData);
+                XLSX.utils.book_append_sheet(workbook, ws1, 'Batches');
+                
+                // Entries Sheet
+                if (appState.entries.length > 0) {
+                    const entriesData = appState.entries.map(entry => ({
+                        'Entry ID': entry.id,
+                        'Material': entry.material,
+                        'Colour': entry.colour,
+                        'Weight (kg)': entry.weight,
+                        'Status': entry.status.charAt(0).toUpperCase() + entry.status.slice(1),
+                        'Date': new Date(entry.timestamp).toLocaleDateString(),
+                        'Time': new Date(entry.timestamp).toLocaleTimeString(),
+                        'Added By': entry.addedBy || 'N/A'
+                    }));
+                    
+                    const ws2 = XLSX.utils.json_to_sheet(entriesData);
+                    XLSX.utils.book_append_sheet(workbook, ws2, 'Entries');
+                }
+            }
+            
+            if (type === 'summary' || type === 'details') {
+                // Summary Sheet
+                const pendingBatches = appState.batches.filter(b => b.status === 'pending');
+                const finishedBatches = appState.batches.filter(b => b.status === 'finished');
+                
+                const summaryData = [
+                    {
+                        'Metric': 'Total Batches',
+                        'Value': appState.batches.length,
+                        'Details': ''
+                    },
+                    {
+                        'Metric': 'Pending Batches',
+                        'Value': pendingBatches.length,
+                        'Details': `${pendingBatches.reduce((sum, b) => sum + b.totalWeight, 0).toFixed(1)} kg`
+                    },
+                    {
+                        'Metric': 'Finished Batches',
+                        'Value': finishedBatches.length,
+                        'Details': `${finishedBatches.reduce((sum, b) => sum + b.totalWeight, 0).toFixed(1)} kg`
+                    },
+                    {
+                        'Metric': 'Total Weight',
+                        'Value': appState.batches.reduce((sum, b) => sum + b.totalWeight, 0).toFixed(1) + ' kg',
+                        'Details': ''
+                    },
+                    {
+                        'Metric': 'Total Entries',
+                        'Value': appState.entries.length,
+                        'Details': ''
+                    }
+                ];
+                
+                const ws3 = XLSX.utils.json_to_sheet(summaryData);
+                XLSX.utils.book_append_sheet(workbook, ws3, 'Summary');
+                
+                // Material-wise Summary
+                const materialSummary = {};
+                appState.batches.forEach(batch => {
+                    if (!materialSummary[batch.material]) {
+                        materialSummary[batch.material] = { pending: 0, finished: 0 };
+                    }
+                    
+                    if (batch.status === 'pending') {
+                        materialSummary[batch.material].pending += batch.totalWeight;
+                    } else {
+                        materialSummary[batch.material].finished += batch.totalWeight;
+                    }
+                });
+                
+                const materialData = Object.keys(materialSummary).map(material => ({
+                    'Material': material,
+                    'Pending (kg)': materialSummary[material].pending.toFixed(1),
+                    'Finished (kg)': materialSummary[material].finished.toFixed(1),
+                    'Total (kg)': (materialSummary[material].pending + materialSummary[material].finished).toFixed(1)
+                }));
+                
+                const ws4 = XLSX.utils.json_to_sheet(materialData);
+                XLSX.utils.book_append_sheet(workbook, ws4, 'Material Summary');
+            }
+            
+            // Save Excel file
+            XLSX.writeFile(workbook, `Haji_Ali_Traders_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+            showNotification(`✅ Excel file exported successfully`);
+        }
+        
+        function exportSummaryReport() {
+            exportToPDF('summary');
+        }
+        
+        function exportDetailedReport() {
+            exportToExcel('details');
+        }
         
         // ============================================
         // AUTHENTICATION FUNCTIONS
@@ -2218,7 +2567,13 @@
             // Save entry button
             elements.saveBtn.addEventListener('click', saveEntry);
             
-            // Export button
+            // Export buttons
+            elements.exportPdfBtn.addEventListener('click', () => exportToPDF('summary'));
+            elements.exportExcelBtn.addEventListener('click', () => exportToExcel('full'));
+            elements.exportSummaryBtn.addEventListener('click', exportSummaryReport);
+            elements.exportDetailsBtn.addEventListener('click', exportDetailedReport);
+            
+            // Export JSON button
             elements.exportBtn.addEventListener('click', () => {
                 const data = {
                     app: APP_CONFIG.appName,
@@ -2239,7 +2594,7 @@
                 a.download = `haji-ali-traders-backup-${new Date().toISOString().split('T')[0]}.json`;
                 a.click();
                 
-                showNotification('✅ Data exported successfully');
+                showNotification('✅ JSON backup exported successfully');
             });
             
             // Import button
@@ -2422,6 +2777,8 @@
         window.openEditWeightModal = openEditWeightModal;
         window.markBatchAsFinished = markBatchAsFinished;
         window.showLoginModal = showLoginModal;
+        window.exportToPDF = exportToPDF;
+        window.exportToExcel = exportToExcel;
         
         // ============================================
         // START THE APP
