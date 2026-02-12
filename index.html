@@ -1841,6 +1841,13 @@
         }
         
         // ============================================
+        // HELPER: Generate batch ID from colour, material, status
+        // ============================================
+        function generateBatchId(colour, material, status) {
+            return `${colour}-${material}-${status}`.toLowerCase().replace(/\s+/g, '-');
+        }
+        
+        // ============================================
         // DATA MANAGEMENT FUNCTIONS
         // ============================================
         async function saveEntry() {
@@ -1881,12 +1888,11 @@
                 
                 saveToLocalStorage(entry);
                 
-                const batchId = `${entry.colour}-${entry.material}`.toLowerCase().replace(/\s+/g, '-');
-                let batch = appState.batches.find(b => 
-                    b.id === batchId && b.status === entry.status
-                );
+                const batchId = generateBatchId(entry.colour, entry.material, entry.status);
+                let batch = appState.batches.find(b => b.id === batchId);
                 
                 if (!batch) {
+                    // Create new batch
                     batch = {
                         id: batchId,
                         material: entry.material,
@@ -1898,18 +1904,25 @@
                         lastUpdated: new Date().toISOString(),
                         createdBy: appState.user.mobile
                     };
+                    if (entry.status === 'finished') {
+                        batch.finishedAt = new Date().toISOString();
+                    }
                     appState.batches.push(batch);
                 } else {
+                    // Merge into existing batch
                     batch.entries.push(entry);
                     batch.totalWeight = parseFloat((batch.totalWeight + entry.weight).toFixed(2));
                     batch.lastUpdated = new Date().toISOString();
                     batch.updatedBy = appState.user.mobile;
+                    if (entry.status === 'finished') {
+                        batch.finishedAt = new Date().toISOString();
+                    }
                 }
                 
                 if (appState.firebaseInitialized && appState.isOnline) {
                     await saveBatchToFirebase(batch);
                 } else {
-                    queueForSync(batch);
+                    queueForSync({ type: 'batch_update', data: batch });
                 }
                 
                 updateAllDisplays();
@@ -2049,7 +2062,7 @@
                     showNotification("Error updating weight in cloud", "error");
                 }
             } else {
-                queueForSync(batch);
+                queueForSync({ type: 'batch_update', data: batch });
                 showNotification(`✅ Weight updated locally (will sync when online)`);
             }
             
@@ -2057,47 +2070,88 @@
             if (elements.editWeightModal) closeModal(elements.editWeightModal);
         }
         
+        // --- FIX: markBatchAsFinished now MERGES with existing finished batch ---
         async function markBatchAsFinished(batchId) {
             if (!appState.isLoggedIn) {
                 showNotification("Please login to mark batches as finished", "error");
                 showLoginModal();
                 return;
             }
-            
-            const batch = appState.batches.find(b => b.id === batchId);
-            if (!batch) return;
-            
-            if (batch.status === 'finished') {
-                showNotification("Batch is already finished", "error");
+        
+            const pendingBatch = appState.batches.find(b => b.id === batchId);
+            if (!pendingBatch) return;
+            if (pendingBatch.status !== 'pending') {
+                showNotification("This batch is already finished", "error");
                 return;
             }
-            
-            if (!confirm(`Mark ${batch.colour} ${batch.material} (${batch.totalWeight}kg) as finished?`)) {
+            if (!confirm(`Mark ${pendingBatch.colour} ${pendingBatch.material} (${pendingBatch.totalWeight}kg) as finished?`)) {
                 return;
             }
-            
-            batch.status = 'finished';
-            batch.finishedAt = new Date().toISOString();
-            batch.lastUpdated = new Date().toISOString();
-            batch.finishedBy = appState.user.mobile;
-            
-            if (appState.firebaseInitialized && appState.isOnline) {
-                try {
-                    await saveBatchToFirebase(batch);
-                    showNotification(`✅ Batch marked as finished`);
-                } catch (error) {
-                    showNotification("Error updating batch in cloud", "error");
+        
+            const finishedBatchId = generateBatchId(pendingBatch.colour, pendingBatch.material, 'finished');
+            let finishedBatch = appState.batches.find(b => b.id === finishedBatchId);
+        
+            if (finishedBatch) {
+                // --- Merge pending batch into existing finished batch ---
+                // Move all entries
+                finishedBatch.entries.push(...pendingBatch.entries);
+                // Update weight
+                finishedBatch.totalWeight = parseFloat((finishedBatch.totalWeight + pendingBatch.totalWeight).toFixed(2));
+                finishedBatch.lastUpdated = new Date().toISOString();
+                finishedBatch.updatedBy = appState.user.mobile;
+                finishedBatch.finishedAt = new Date().toISOString();
+        
+                // Remove the pending batch from state
+                appState.batches = appState.batches.filter(b => b.id !== pendingBatch.id);
+        
+                // Sync: delete pending doc, update finished doc
+                if (appState.firebaseInitialized && appState.isOnline) {
+                    try {
+                        await appState.db.collection(APP_CONFIG.firestoreCollections.batches).doc(pendingBatch.id).delete();
+                        await saveBatchToFirebase(finishedBatch);
+                        showNotification(`✅ Merged into existing finished batch – total now ${finishedBatch.totalWeight.toFixed(1)}kg`);
+                    } catch (error) {
+                        console.error("Error merging batch in cloud:", error);
+                        showNotification("Error updating cloud, changes saved locally", "error");
+                    }
+                } else {
+                    queueForSync({ type: 'batch_delete', id: pendingBatch.id });
+                    queueForSync({ type: 'batch_update', data: finishedBatch });
+                    showNotification(`✅ Merged into existing finished batch (offline, will sync later)`);
                 }
             } else {
-                queueForSync(batch);
-                showNotification(`✅ Batch marked as finished locally`);
+                // --- No existing finished batch: convert this pending batch to finished ---
+                const oldId = pendingBatch.id;
+                pendingBatch.status = 'finished';
+                pendingBatch.finishedAt = new Date().toISOString();
+                pendingBatch.lastUpdated = new Date().toISOString();
+                pendingBatch.finishedBy = appState.user.mobile;
+                pendingBatch.id = finishedBatchId;
+        
+                appState.batches = appState.batches.filter(b => b.id !== oldId);
+                appState.batches.push(pendingBatch);
+        
+                if (appState.firebaseInitialized && appState.isOnline) {
+                    try {
+                        await appState.db.collection(APP_CONFIG.firestoreCollections.batches).doc(oldId).delete();
+                        await saveBatchToFirebase(pendingBatch);
+                        showNotification(`✅ Batch marked as finished`);
+                    } catch (error) {
+                        console.error("Error updating batch in cloud:", error);
+                        showNotification("Error updating cloud, changes saved locally", "error");
+                    }
+                } else {
+                    queueForSync({ type: 'batch_delete', id: oldId });
+                    queueForSync({ type: 'batch_update', data: pendingBatch });
+                    showNotification(`✅ Batch marked as finished locally`);
+                }
             }
-            
+        
             updateAllDisplays();
         }
         
         // ============================================
-        // NEW: CLEAR PENDING / CLEAR FINISHED FUNCTIONS
+        // CLEAR PENDING / CLEAR FINISHED (status-aware filtering)
         // ============================================
         async function clearPendingBatches() {
             if (!appState.isLoggedIn) {
@@ -2116,29 +2170,28 @@
                 return;
             }
             
-            // Get IDs of pending batches
             const pendingBatchIds = pendingBatches.map(b => b.id);
             
             // Remove from appState.batches
             appState.batches = appState.batches.filter(b => b.status !== 'pending');
             
-            // Remove corresponding entries from appState.entries
+            // Remove corresponding entries – only pending entries that belong to these batches
             appState.entries = appState.entries.filter(entry => {
-                const entryBatchId = `${entry.colour}-${entry.material}`.toLowerCase().replace(/\s+/g, '-');
+                if (entry.status !== 'pending') return true;
+                const entryBatchId = generateBatchId(entry.colour, entry.material, 'pending');
                 return !pendingBatchIds.includes(entryBatchId);
             });
             
             // Remove any pending sync items that refer to these batches
             appState.pendingSync = appState.pendingSync.filter(item => 
-                !(item.type === 'batch_update' && pendingBatchIds.includes(item.data.id))
+                !(item.type === 'batch_update' && pendingBatchIds.includes(item.data.id)) &&
+                !(item.type === 'batch_delete' && pendingBatchIds.includes(item.id))
             );
             
-            // Update localStorage
             localStorage.setItem('wastesort_batches', JSON.stringify(appState.batches));
             localStorage.setItem('wastesort_entries', JSON.stringify(appState.entries));
             localStorage.setItem('wastesort_pending_sync', JSON.stringify(appState.pendingSync));
             
-            // If Firebase initialized and online, delete the batch documents from Firestore
             if (appState.firebaseInitialized && appState.isOnline) {
                 try {
                     const deletePromises = pendingBatchIds.map(id => 
@@ -2172,29 +2225,26 @@
                 return;
             }
             
-            // Get IDs of finished batches
             const finishedBatchIds = finishedBatches.map(b => b.id);
             
-            // Remove from appState.batches
             appState.batches = appState.batches.filter(b => b.status !== 'finished');
             
-            // Remove corresponding entries from appState.entries
+            // Remove corresponding entries – only finished entries that belong to these batches
             appState.entries = appState.entries.filter(entry => {
-                const entryBatchId = `${entry.colour}-${entry.material}`.toLowerCase().replace(/\s+/g, '-');
+                if (entry.status !== 'finished') return true;
+                const entryBatchId = generateBatchId(entry.colour, entry.material, 'finished');
                 return !finishedBatchIds.includes(entryBatchId);
             });
             
-            // Remove any pending sync items that refer to these batches
             appState.pendingSync = appState.pendingSync.filter(item => 
-                !(item.type === 'batch_update' && finishedBatchIds.includes(item.data.id))
+                !(item.type === 'batch_update' && finishedBatchIds.includes(item.data.id)) &&
+                !(item.type === 'batch_delete' && finishedBatchIds.includes(item.id))
             );
             
-            // Update localStorage
             localStorage.setItem('wastesort_batches', JSON.stringify(appState.batches));
             localStorage.setItem('wastesort_entries', JSON.stringify(appState.entries));
             localStorage.setItem('wastesort_pending_sync', JSON.stringify(appState.pendingSync));
             
-            // If Firebase initialized and online, delete the batch documents from Firestore
             if (appState.firebaseInitialized && appState.isOnline) {
                 try {
                     const deletePromises = finishedBatchIds.map(id => 
@@ -2246,15 +2296,13 @@
         }
         
         // ============================================
-        // SYNC FUNCTIONS
+        // SYNC FUNCTIONS – handle both update and delete
         // ============================================
-        function queueForSync(batch) {
+        function queueForSync(item) {
             appState.pendingSync.push({
-                type: 'batch_update',
-                data: batch,
+                ...item,
                 timestamp: new Date().toISOString()
             });
-            
             localStorage.setItem('wastesort_pending_sync', JSON.stringify(appState.pendingSync));
             updateSyncStatus(false);
         }
@@ -2267,15 +2315,15 @@
                 for (const item of appState.pendingSync) {
                     if (item.type === 'batch_update') {
                         await saveBatchToFirebase(item.data);
+                    } else if (item.type === 'batch_delete') {
+                        await appState.db.collection(APP_CONFIG.firestoreCollections.batches).doc(item.id).delete();
                     }
                 }
                 
                 appState.pendingSync = [];
                 localStorage.removeItem('wastesort_pending_sync');
                 updateSyncStatus(true);
-                
                 showNotification("✅ Pending changes synced to cloud");
-                
             } catch (error) {
                 console.error("Sync error:", error);
             }
@@ -2571,7 +2619,57 @@
         }
         
         // ============================================
-        // EVENT LISTENERS SETUP (with null checks)
+        // MIGRATION – add status to existing batch IDs (run once)
+        // ============================================
+        async function migrateBatchIds() {
+            console.log("Checking for old batch ID format...");
+            let migrated = false;
+        
+            // ---- Migrate localStorage batches ----
+            const localBatches = JSON.parse(localStorage.getItem('wastesort_batches') || '[]');
+            const updatedLocalBatches = localBatches.map(batch => {
+                const oldId = batch.id;
+                if (!oldId.endsWith('-pending') && !oldId.endsWith('-finished')) {
+                    const status = batch.status || 'pending';
+                    const newId = generateBatchId(batch.colour, batch.material, status);
+                    batch.id = newId;
+                    migrated = true;
+                }
+                return batch;
+            });
+            if (migrated) {
+                localStorage.setItem('wastesort_batches', JSON.stringify(updatedLocalBatches));
+                appState.batches = updatedLocalBatches;
+                console.log("✅ localStorage batches migrated");
+            }
+        
+            // ---- Migrate Firestore documents (if online) ----
+            if (appState.firebaseInitialized && appState.isOnline) {
+                const batchesRef = appState.db.collection(APP_CONFIG.firestoreCollections.batches);
+                const snapshot = await batchesRef.get();
+        
+                for (const doc of snapshot.docs) {
+                    const oldId = doc.id;
+                    const data = doc.data();
+                    if (oldId.endsWith('-pending') || oldId.endsWith('-finished')) continue;
+        
+                    const status = data.status || 'pending';
+                    const newId = generateBatchId(data.colour, data.material, status);
+        
+                    await batchesRef.doc(newId).set(data);
+                    await batchesRef.doc(oldId).delete();
+                    migrated = true;
+                    console.log(`Migrated Firestore doc: ${oldId} → ${newId}`);
+                }
+            }
+        
+            if (migrated) {
+                showNotification("🔄 Data format upgraded – batch IDs now include status", "success");
+            }
+        }
+        
+        // ============================================
+        // EVENT LISTENERS SETUP
         // ============================================
         function setupEventListeners() {
             // Tab switching
@@ -2730,12 +2828,12 @@
                 });
             }
             
-            // NEW: Clear Pending button
+            // Clear Pending button
             if (elements.clearPendingBtn) {
                 elements.clearPendingBtn.addEventListener('click', clearPendingBatches);
             }
             
-            // NEW: Clear Finished button
+            // Clear Finished button
             if (elements.clearFinishedBtn) {
                 elements.clearFinishedBtn.addEventListener('click', clearFinishedBatches);
             }
@@ -2834,12 +2932,13 @@
         }
         
         // ============================================
-        // INITIALIZATION
+        // INITIALIZATION – with migration call
         // ============================================
         async function initializeApp() {
             loadFromLocalStorage();
             checkAuthState();
             await initializeFirebase();
+            await migrateBatchIds();
             renderMaterialGrid();
             renderColourGrid();
             updateAllDisplays();
