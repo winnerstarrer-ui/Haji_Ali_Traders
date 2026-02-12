@@ -521,6 +521,16 @@
             opacity: 0.9;
         }
         
+        /* === NEW: Move Weight Button (matches existing action buttons) === */
+        .btn-move {
+            background: var(--accent-teal);
+            color: white;
+        }
+        
+        .btn-move:hover {
+            background: #16a085;
+        }
+        
         /* === MODALS === */
         .modal-overlay {
             display: none;
@@ -1173,6 +1183,24 @@
             </div>
         </div>
         
+        <!-- NEW: Move Weight Modal -->
+        <div class="modal-overlay" id="moveWeightModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h2>➡️ Move to Finished</h2>
+                    <p id="moveBatchTitle">Enter weight to move from pending to finished</p>
+                </div>
+                <div class="modal-body">
+                    <input type="number" class="modal-input" id="moveWeightInput" 
+                           step="0.1" min="0.1" placeholder="Weight to move (kg)">
+                    <div class="modal-actions">
+                        <button class="modal-btn btn-cancel" id="cancelMoveBtn">Cancel</button>
+                        <button class="modal-btn btn-submit" id="saveMoveBtn">Move Weight</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <!-- Login Modal -->
         <div class="modal-overlay" id="loginModal">
             <div class="modal">
@@ -1261,8 +1289,9 @@
             lastSyncTime: null,
             pendingSync: [],
             
-            // Current batch being edited
+            // Current batch being edited / moved
             editingBatch: null,
+            movingBatch: null,
             
             // Auth state
             isLoggedIn: false,
@@ -1316,6 +1345,7 @@
             materialModal: getElement('materialModal'),
             colourModal: getElement('colourModal'),
             editWeightModal: getElement('editWeightModal'),
+            moveWeightModal: getElement('moveWeightModal'),
             loginModal: getElement('loginModal'),
             
             // Modal buttons
@@ -1325,6 +1355,8 @@
             cancelColourBtn: getElement('cancelColourBtn'),
             saveEditBtn: getElement('saveEditBtn'),
             cancelEditBtn: getElement('cancelEditBtn'),
+            saveMoveBtn: getElement('saveMoveBtn'),
+            cancelMoveBtn: getElement('cancelMoveBtn'),
             loginMobileBtn: getElement('loginMobileBtn'),
             cancelLoginBtn: getElement('cancelLoginBtn'),
             
@@ -1333,6 +1365,8 @@
             newColourInput: getElement('newColourInput'),
             editWeightInput: getElement('editWeightInput'),
             editBatchTitle: getElement('editBatchTitle'),
+            moveWeightInput: getElement('moveWeightInput'),
+            moveBatchTitle: getElement('moveBatchTitle'),
             mobileNumber: getElement('mobileNumber'),
             
             // Lists
@@ -1699,7 +1733,7 @@
                 }
             });
             
-            const editButtons = document.querySelectorAll('.btn-edit, .btn-finish');
+            const editButtons = document.querySelectorAll('.btn-edit, .btn-finish, .btn-move');
             editButtons.forEach(btn => {
                 if (enabled) btn.classList.remove('disabled-for-view');
                 else btn.classList.add('disabled-for-view');
@@ -1841,10 +1875,65 @@
         }
         
         // ============================================
-        // HELPER: Generate batch ID from colour, material, status
+        // HELPER: Generate batch ID from colour, material, status (TRIMMED)
         // ============================================
         function generateBatchId(colour, material, status) {
-            return `${colour}-${material}-${status}`.toLowerCase().replace(/\s+/g, '-');
+            return `${colour.trim()}-${material.trim()}-${status}`.toLowerCase().replace(/\s+/g, '-');
+        }
+        
+        // ============================================
+        // HELPER: Get or create finished batch for an entry (WITH LEGACY SEARCH)
+        // ============================================
+        function getOrCreateFinishedBatch(entry) {
+            const targetId = generateBatchId(entry.colour, entry.material, 'finished');
+            
+            // 1. Try exact match (normalized ID)
+            let finishedBatch = appState.batches.find(b => b.id === targetId && b.status === 'finished');
+            
+            // 2. If not found, search for any finished batch with same colour/material (legacy ID or wrong status)
+            if (!finishedBatch) {
+                const legacyBatch = appState.batches.find(b => 
+                    b.colour?.trim().toLowerCase() === entry.colour.trim().toLowerCase() &&
+                    b.material?.trim().toLowerCase() === entry.material.trim().toLowerCase() &&
+                    b.status === 'finished'
+                );
+                
+                if (legacyBatch) {
+                    // Migrate this batch to the new ID format
+                    finishedBatch = legacyBatch;
+                    const oldId = finishedBatch.id;
+                    finishedBatch.id = targetId;
+                    
+                    // Update localStorage and Firestore if possible
+                    if (appState.firebaseInitialized && appState.isOnline) {
+                        appState.db.collection(APP_CONFIG.firestoreCollections.batches).doc(oldId).delete()
+                            .then(() => saveBatchToFirebase(finishedBatch))
+                            .catch(console.error);
+                    } else {
+                        queueForSync({ type: 'batch_delete', id: oldId });
+                        queueForSync({ type: 'batch_update', data: finishedBatch });
+                    }
+                }
+            }
+            
+            // 3. If still not found, create new finished batch
+            if (!finishedBatch) {
+                finishedBatch = {
+                    id: targetId,
+                    material: entry.material,
+                    colour: entry.colour,
+                    entries: [],
+                    totalWeight: 0,
+                    status: 'finished',
+                    createdAt: new Date().toISOString(),
+                    lastUpdated: new Date().toISOString(),
+                    createdBy: entry.addedBy,
+                    finishedAt: new Date().toISOString()
+                };
+                appState.batches.push(finishedBatch);
+            }
+            
+            return finishedBatch;
         }
         
         // ============================================
@@ -1888,41 +1977,50 @@
                 
                 saveToLocalStorage(entry);
                 
-                const batchId = generateBatchId(entry.colour, entry.material, entry.status);
-                let batch = appState.batches.find(b => b.id === batchId);
-                
-                if (!batch) {
-                    // Create new batch
-                    batch = {
-                        id: batchId,
-                        material: entry.material,
-                        colour: entry.colour,
-                        entries: [entry],
-                        totalWeight: entry.weight,
-                        status: entry.status,
-                        createdAt: new Date().toISOString(),
-                        lastUpdated: new Date().toISOString(),
-                        createdBy: appState.user.mobile
-                    };
-                    if (entry.status === 'finished') {
-                        batch.finishedAt = new Date().toISOString();
+                if (entry.status === 'pending') {
+                    // Pending: status-aware batch ID
+                    const batchId = generateBatchId(entry.colour, entry.material, 'pending');
+                    let batch = appState.batches.find(b => b.id === batchId);
+                    
+                    if (!batch) {
+                        batch = {
+                            id: batchId,
+                            material: entry.material,
+                            colour: entry.colour,
+                            entries: [entry],
+                            totalWeight: entry.weight,
+                            status: 'pending',
+                            createdAt: new Date().toISOString(),
+                            lastUpdated: new Date().toISOString(),
+                            createdBy: appState.user.mobile
+                        };
+                        appState.batches.push(batch);
+                    } else {
+                        batch.entries.push(entry);
+                        batch.totalWeight = parseFloat((batch.totalWeight + entry.weight).toFixed(2));
+                        batch.lastUpdated = new Date().toISOString();
+                        batch.updatedBy = appState.user.mobile;
                     }
-                    appState.batches.push(batch);
-                } else {
-                    // Merge into existing batch
-                    batch.entries.push(entry);
-                    batch.totalWeight = parseFloat((batch.totalWeight + entry.weight).toFixed(2));
-                    batch.lastUpdated = new Date().toISOString();
-                    batch.updatedBy = appState.user.mobile;
-                    if (entry.status === 'finished') {
-                        batch.finishedAt = new Date().toISOString();
+                    
+                    if (appState.firebaseInitialized && appState.isOnline) {
+                        await saveBatchToFirebase(batch);
+                    } else {
+                        queueForSync({ type: 'batch_update', data: batch });
                     }
-                }
-                
-                if (appState.firebaseInitialized && appState.isOnline) {
-                    await saveBatchToFirebase(batch);
                 } else {
-                    queueForSync({ type: 'batch_update', data: batch });
+                    // Finished: merge into existing finished batch (using robust finder)
+                    const finishedBatch = getOrCreateFinishedBatch(entry);
+                    finishedBatch.entries.push(entry);
+                    finishedBatch.totalWeight = parseFloat((finishedBatch.totalWeight + entry.weight).toFixed(2));
+                    finishedBatch.lastUpdated = new Date().toISOString();
+                    finishedBatch.updatedBy = appState.user.mobile;
+                    finishedBatch.finishedAt = new Date().toISOString();
+                    
+                    if (appState.firebaseInitialized && appState.isOnline) {
+                        await saveBatchToFirebase(finishedBatch);
+                    } else {
+                        queueForSync({ type: 'batch_update', data: finishedBatch });
+                    }
                 }
                 
                 updateAllDisplays();
@@ -2070,7 +2168,123 @@
             if (elements.editWeightModal) closeModal(elements.editWeightModal);
         }
         
-        // --- FIX: markBatchAsFinished now MERGES with existing finished batch ---
+        // ============================================
+        // NEW: Move partial weight from pending to finished (FIXED)
+        // ============================================
+        function openMoveWeightModal(batchId) {
+            if (!appState.isLoggedIn) {
+                showNotification("Please login to move weight", "error");
+                showLoginModal();
+                return;
+            }
+            
+            const batch = appState.batches.find(b => b.id === batchId);
+            if (!batch) return;
+            if (batch.status !== 'pending') {
+                showNotification("Only pending batches can be moved", "error");
+                return;
+            }
+            
+            appState.movingBatch = batch;
+            if (elements.moveBatchTitle) {
+                elements.moveBatchTitle.textContent = `Move weight from ${batch.colour} ${batch.material} (max ${batch.totalWeight.toFixed(1)} kg)`;
+            }
+            if (elements.moveWeightInput) {
+                elements.moveWeightInput.value = '';
+                elements.moveWeightInput.max = batch.totalWeight;
+                elements.moveWeightInput.step = 0.1;
+                elements.moveWeightInput.min = 0.1;
+            }
+            openModal(elements.moveWeightModal);
+        }
+        
+        async function moveBatchWeight() {
+            if (!appState.isLoggedIn) {
+                showNotification("Please login to move weight", "error");
+                showLoginModal();
+                return;
+            }
+            
+            const pendingBatch = appState.movingBatch;
+            if (!pendingBatch) return;
+            
+            const moveWeight = parseFloat(elements.moveWeightInput?.value);
+            if (!moveWeight || moveWeight <= 0 || isNaN(moveWeight)) {
+                showNotification("Please enter a valid weight to move", "error");
+                if (elements.moveWeightInput) elements.moveWeightInput.focus();
+                return;
+            }
+            
+            if (moveWeight >= pendingBatch.totalWeight) {
+                showNotification("Use 'Mark Finished' to move the entire batch", "error");
+                return;
+            }
+            
+            try {
+                // 1. Create a finished entry for the moved weight
+                const movedEntry = {
+                    id: Date.now().toString() + '-move',
+                    material: pendingBatch.material,
+                    colour: pendingBatch.colour,
+                    weight: parseFloat(moveWeight.toFixed(2)),
+                    status: 'finished',
+                    timestamp: new Date().toISOString(),
+                    deviceId: getDeviceId(),
+                    addedBy: appState.user.mobile,
+                    movedFrom: pendingBatch.id
+                };
+                
+                // 2. Save entry to localStorage
+                const entries = JSON.parse(localStorage.getItem('wastesort_entries') || '[]');
+                entries.push(movedEntry);
+                localStorage.setItem('wastesort_entries', JSON.stringify(entries));
+                appState.entries.push(movedEntry);
+                
+                // 3. Merge into finished batch (now using the robust finder)
+                const finishedBatch = getOrCreateFinishedBatch(movedEntry);
+                finishedBatch.entries.push(movedEntry);
+                finishedBatch.totalWeight = parseFloat((finishedBatch.totalWeight + moveWeight).toFixed(2));
+                finishedBatch.lastUpdated = new Date().toISOString();
+                finishedBatch.updatedBy = appState.user.mobile;
+                finishedBatch.finishedAt = new Date().toISOString();
+                
+                // 4. Reduce pending batch weight
+                pendingBatch.totalWeight = parseFloat((pendingBatch.totalWeight - moveWeight).toFixed(2));
+                pendingBatch.lastUpdated = new Date().toISOString();
+                pendingBatch.updatedBy = appState.user.mobile;
+                
+                // 5. Update state (pendingBatch and finishedBatch are already references in appState.batches)
+                
+                // 6. Sync with Firebase / offline queue
+                if (appState.firebaseInitialized && appState.isOnline) {
+                    try {
+                        await saveBatchToFirebase(pendingBatch);
+                        await saveBatchToFirebase(finishedBatch);
+                        showNotification(`✅ Moved ${moveWeight}kg to finished batch`);
+                    } catch (error) {
+                        console.error("Error moving batch in cloud:", error);
+                        showNotification("Error updating cloud, changes saved locally", "error");
+                    }
+                } else {
+                    queueForSync({ type: 'batch_update', data: pendingBatch });
+                    queueForSync({ type: 'batch_update', data: finishedBatch });
+                    showNotification(`✅ Moved ${moveWeight}kg to finished batch (offline, will sync later)`);
+                }
+                
+                // 7. Update UI
+                updateAllDisplays();
+                closeModal(elements.moveWeightModal);
+                appState.movingBatch = null;
+                
+            } catch (error) {
+                console.error("Move weight error:", error);
+                showNotification("Error moving weight", "error");
+            }
+        }
+        
+        // ============================================
+        // MARK BATCH AS FINISHED (MERGE) - improved with legacy search
+        // ============================================
         async function markBatchAsFinished(batchId) {
             if (!appState.isLoggedIn) {
                 showNotification("Please login to mark batches as finished", "error");
@@ -2089,22 +2303,40 @@
             }
         
             const finishedBatchId = generateBatchId(pendingBatch.colour, pendingBatch.material, 'finished');
-            let finishedBatch = appState.batches.find(b => b.id === finishedBatchId);
+            let finishedBatch = appState.batches.find(b => b.id === finishedBatchId && b.status === 'finished');
+            
+            // If not found, search for any finished batch with same colour/material (legacy)
+            if (!finishedBatch) {
+                finishedBatch = appState.batches.find(b => 
+                    b.colour?.trim().toLowerCase() === pendingBatch.colour.trim().toLowerCase() &&
+                    b.material?.trim().toLowerCase() === pendingBatch.material.trim().toLowerCase() &&
+                    b.status === 'finished'
+                );
+                
+                if (finishedBatch) {
+                    // Migrate to new ID
+                    const oldId = finishedBatch.id;
+                    finishedBatch.id = finishedBatchId;
+                    if (appState.firebaseInitialized && appState.isOnline) {
+                        await appState.db.collection(APP_CONFIG.firestoreCollections.batches).doc(oldId).delete().catch(console.error);
+                        await saveBatchToFirebase(finishedBatch);
+                    } else {
+                        queueForSync({ type: 'batch_delete', id: oldId });
+                        queueForSync({ type: 'batch_update', data: finishedBatch });
+                    }
+                }
+            }
         
             if (finishedBatch) {
-                // --- Merge pending batch into existing finished batch ---
-                // Move all entries
+                // Merge pending batch into existing finished batch
                 finishedBatch.entries.push(...pendingBatch.entries);
-                // Update weight
                 finishedBatch.totalWeight = parseFloat((finishedBatch.totalWeight + pendingBatch.totalWeight).toFixed(2));
                 finishedBatch.lastUpdated = new Date().toISOString();
                 finishedBatch.updatedBy = appState.user.mobile;
                 finishedBatch.finishedAt = new Date().toISOString();
         
-                // Remove the pending batch from state
                 appState.batches = appState.batches.filter(b => b.id !== pendingBatch.id);
         
-                // Sync: delete pending doc, update finished doc
                 if (appState.firebaseInitialized && appState.isOnline) {
                     try {
                         await appState.db.collection(APP_CONFIG.firestoreCollections.batches).doc(pendingBatch.id).delete();
@@ -2120,7 +2352,7 @@
                     showNotification(`✅ Merged into existing finished batch (offline, will sync later)`);
                 }
             } else {
-                // --- No existing finished batch: convert this pending batch to finished ---
+                // Convert pending batch to finished (no existing finished batch)
                 const oldId = pendingBatch.id;
                 pendingBatch.status = 'finished';
                 pendingBatch.finishedAt = new Date().toISOString();
@@ -2413,6 +2645,27 @@
                 const date = new Date(batch.lastUpdated).toLocaleDateString();
                 const time = new Date(batch.lastUpdated).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 
+                let actionsHtml = '';
+                if (isPending) {
+                    actionsHtml = `
+                        <button class="action-small btn-edit" onclick="openEditWeightModal('${batch.id}')">
+                            ⚖️ Edit Weight
+                        </button>
+                        <button class="action-small btn-move" onclick="openMoveWeightModal('${batch.id}')">
+                            ➡️ Move
+                        </button>
+                        <button class="action-small btn-finish" onclick="markBatchAsFinished('${batch.id}')">
+                            ✅ Mark Finished
+                        </button>
+                    `;
+                } else {
+                    actionsHtml = `
+                        <button class="action-small btn-edit" onclick="openEditWeightModal('${batch.id}')">
+                            ⚖️ Edit Weight
+                        </button>
+                    `;
+                }
+                
                 html += `
                     <div class="batch-card ${batch.status}">
                         <div class="batch-header">
@@ -2429,14 +2682,7 @@
                             <span>Updated: ${date} ${time}</span>
                         </div>
                         <div class="batch-actions">
-                            <button class="action-small btn-edit" onclick="openEditWeightModal('${batch.id}')">
-                                ⚖️ Edit Weight
-                            </button>
-                            ${isPending ? `
-                                <button class="action-small btn-finish" onclick="markBatchAsFinished('${batch.id}')">
-                                    ✅ Mark Finished
-                                </button>
-                            ` : ''}
+                            ${actionsHtml}
                         </div>
                     </div>
                 `;
@@ -2515,6 +2761,8 @@
                 elements.newColourInput.focus();
             } else if (modal === elements.editWeightModal && elements.editWeightInput) {
                 elements.editWeightInput.focus();
+            } else if (modal === elements.moveWeightModal && elements.moveWeightInput) {
+                elements.moveWeightInput.focus();
             } else if (modal === elements.loginModal && elements.mobileNumber) {
                 elements.mobileNumber.focus();
             }
@@ -2528,7 +2776,9 @@
             if (elements.newMaterialInput) elements.newMaterialInput.value = '';
             if (elements.newColourInput) elements.newColourInput.value = '';
             if (elements.editWeightInput) elements.editWeightInput.value = '';
+            if (elements.moveWeightInput) elements.moveWeightInput.value = '';
             appState.editingBatch = null;
+            appState.movingBatch = null;
         }
         
         function openEditWeightModal(batchId) {
@@ -2619,28 +2869,46 @@
         }
         
         // ============================================
-        // MIGRATION – add status to existing batch IDs (run once)
+        // MIGRATION – Add status to batch IDs, CORRECT batch.status using entries
         // ============================================
         async function migrateBatchIds() {
-            console.log("Checking for old batch ID format...");
+            console.log("Running comprehensive data migration...");
             let migrated = false;
         
             // ---- Migrate localStorage batches ----
             const localBatches = JSON.parse(localStorage.getItem('wastesort_batches') || '[]');
             const updatedLocalBatches = localBatches.map(batch => {
+                let changed = false;
+                
+                // 1. Determine correct status if missing
+                if (!batch.status) {
+                    // Look at entries (if available) to infer status
+                    const batchEntries = appState.entries.filter(e => 
+                        e.colour?.trim().toLowerCase() === batch.colour?.trim().toLowerCase() &&
+                        e.material?.trim().toLowerCase() === batch.material?.trim().toLowerCase()
+                    );
+                    const hasFinishedEntry = batchEntries.some(e => e.status === 'finished');
+                    batch.status = hasFinishedEntry ? 'finished' : 'pending';
+                    changed = true;
+                }
+                
+                // 2. Normalize ID to include status
                 const oldId = batch.id;
                 if (!oldId.endsWith('-pending') && !oldId.endsWith('-finished')) {
-                    const status = batch.status || 'pending';
-                    const newId = generateBatchId(batch.colour, batch.material, status);
+                    const newId = generateBatchId(batch.colour, batch.material, batch.status);
                     batch.id = newId;
+                    changed = true;
                     migrated = true;
+                    console.log(`Migrated batch: ${oldId} → ${newId} (status: ${batch.status})`);
                 }
-                return batch;
+                
+                return changed ? batch : batch;
             });
+            
             if (migrated) {
                 localStorage.setItem('wastesort_batches', JSON.stringify(updatedLocalBatches));
                 appState.batches = updatedLocalBatches;
-                console.log("✅ localStorage batches migrated");
+                console.log("✅ localStorage batches migrated and statuses corrected");
             }
         
             // ---- Migrate Firestore documents (if online) ----
@@ -2651,11 +2919,23 @@
                 for (const doc of snapshot.docs) {
                     const oldId = doc.id;
                     const data = doc.data();
+                    
+                    // Skip if already in correct format
                     if (oldId.endsWith('-pending') || oldId.endsWith('-finished')) continue;
-        
-                    const status = data.status || 'pending';
+                    
+                    // Determine status (use existing or infer)
+                    let status = data.status;
+                    if (!status) {
+                        // Infer from entries? Hard without entries in Firestore; fallback to 'pending'
+                        status = 'pending';
+                    }
+                    
                     const newId = generateBatchId(data.colour, data.material, status);
-        
+                    
+                    // Update status field and ID
+                    data.status = status;
+                    data.id = newId;
+                    
                     await batchesRef.doc(newId).set(data);
                     await batchesRef.doc(oldId).delete();
                     migrated = true;
@@ -2861,6 +3141,13 @@
             if (elements.cancelEditBtn) {
                 elements.cancelEditBtn.addEventListener('click', () => closeModal(elements.editWeightModal));
             }
+            // Move weight modal buttons
+            if (elements.saveMoveBtn) {
+                elements.saveMoveBtn.addEventListener('click', moveBatchWeight);
+            }
+            if (elements.cancelMoveBtn) {
+                elements.cancelMoveBtn.addEventListener('click', () => closeModal(elements.moveWeightModal));
+            }
             
             // Login buttons
             if (elements.loginBtn) {
@@ -2904,6 +3191,7 @@
                     closeModal(elements.materialModal);
                     closeModal(elements.colourModal);
                     closeModal(elements.editWeightModal);
+                    closeModal(elements.moveWeightModal);
                     closeModal(elements.loginModal);
                 }
                 if (e.key === 'Enter' && e.ctrlKey) {
@@ -2958,6 +3246,7 @@
         // GLOBAL FUNCTIONS (for onclick handlers)
         // ============================================
         window.openEditWeightModal = openEditWeightModal;
+        window.openMoveWeightModal = openMoveWeightModal;
         window.markBatchAsFinished = markBatchAsFinished;
         window.showLoginModal = showLoginModal;
         window.exportToPDF = exportToPDF;
