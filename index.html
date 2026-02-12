@@ -521,7 +521,6 @@
             opacity: 0.9;
         }
         
-        /* === NEW: Move Weight Button (matches existing action buttons) === */
         .btn-move {
             background: var(--accent-teal);
             color: white;
@@ -634,7 +633,7 @@
         
         @keyframes slideInRight {
             from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(0%); opacity: 1; }
         }
         
         .notification.error {
@@ -1050,18 +1049,19 @@
             <!-- Backup & Export Tab -->
             <div class="tab-content" id="backup">
                 <div class="card">
+                    <!-- NEW: Stats now show Pending and Finished separately -->
                     <div class="stats-grid">
                         <div class="stat-box">
-                            <span class="stat-value" id="totalEntries">0</span>
-                            <span class="stat-label">Total Entries</span>
+                            <span class="stat-value" id="pendingBackupStats">0</span>
+                            <span class="stat-label">Pending Batches (kg)</span>
                         </div>
                         <div class="stat-box">
-                            <span class="stat-value" id="storageUsed">0 KB</span>
-                            <span class="stat-label">Storage Used</span>
+                            <span class="stat-value" id="finishedBackupStats">0</span>
+                            <span class="stat-label">Finished Batches (kg)</span>
                         </div>
                         <div class="stat-box">
-                            <span class="stat-value" id="lastSync">-</span>
-                            <span class="stat-label">Last Synced</span>
+                            <span class="stat-value" id="totalBackupStats">0</span>
+                            <span class="stat-label">Entries | Storage | Sync</span>
                         </div>
                     </div>
                     
@@ -1096,7 +1096,7 @@
                         </button>
                     </div>
                     
-                    <!-- NEW: Separate Clear Pending & Clear Finished Buttons -->
+                    <!-- Separate Clear Pending & Clear Finished Buttons -->
                     <div style="margin-top: 20px;">
                         <h3 style="color: var(--dark-green); margin-bottom: 15px;">🧹 Clear Data</h3>
                         <div class="backup-button-grid">
@@ -1183,7 +1183,7 @@
             </div>
         </div>
         
-        <!-- NEW: Move Weight Modal -->
+        <!-- Move Weight Modal -->
         <div class="modal-overlay" id="moveWeightModal">
             <div class="modal">
                 <div class="modal-header">
@@ -1260,7 +1260,6 @@
                 colours: "colour_list",
                 settings: "app_settings"
             },
-            // Authorized mobile number for login
             authorizedMobile: "9370664141"
         };
         
@@ -1268,32 +1267,26 @@
         // GLOBAL STATE
         // ============================================
         let appState = {
-            // User selections
             selectedMaterial: null,
             selectedColour: null,
             selectedStatus: "pending",
             
-            // Local data
             materials: [...APP_CONFIG.defaultMaterials],
             colours: [...APP_CONFIG.defaultColours],
             batches: [],
             entries: [],
             
-            // Firebase
             firebaseInitialized: false,
             db: null,
             unsubscribeFunctions: [],
             
-            // Sync state
             isOnline: navigator.onLine,
             lastSyncTime: null,
             pendingSync: [],
             
-            // Current batch being edited / moved
             editingBatch: null,
             movingBatch: null,
             
-            // Auth state
             isLoggedIn: false,
             user: null
         };
@@ -1306,18 +1299,14 @@
         }
         
         const elements = {
-            // Tabs
             tabs: document.querySelectorAll('.tab'),
             tabContents: document.querySelectorAll('.tab-content'),
             
-            // Selection grids
             materialGrid: getElement('materialGrid'),
             colourGrid: getElement('colourGrid'),
             
-            // Inputs
             weightInput: getElement('weight'),
             
-            // Buttons
             addMaterialBtn: getElement('addMaterialBtn'),
             addColourBtn: getElement('addColourBtn'),
             clearBtn: getElement('clearBtn'),
@@ -1328,27 +1317,22 @@
             loginBtn: getElement('loginBtn'),
             logoutBtn: getElement('logoutBtn'),
             
-            // New clear buttons
             clearPendingBtn: getElement('clearPendingBtn'),
             clearFinishedBtn: getElement('clearFinishedBtn'),
             
-            // Export buttons
             exportPdfBtn: getElement('exportPdfBtn'),
             exportExcelBtn: getElement('exportExcelBtn'),
             exportSummaryBtn: getElement('exportSummaryBtn'),
             exportDetailsBtn: getElement('exportDetailsBtn'),
             
-            // Status buttons
             statusButtons: document.querySelectorAll('.status-btn'),
             
-            // Modals
             materialModal: getElement('materialModal'),
             colourModal: getElement('colourModal'),
             editWeightModal: getElement('editWeightModal'),
             moveWeightModal: getElement('moveWeightModal'),
             loginModal: getElement('loginModal'),
             
-            // Modal buttons
             saveMaterialBtn: getElement('saveMaterialBtn'),
             cancelMaterialBtn: getElement('cancelMaterialBtn'),
             saveColourBtn: getElement('saveColourBtn'),
@@ -1360,7 +1344,6 @@
             loginMobileBtn: getElement('loginMobileBtn'),
             cancelLoginBtn: getElement('cancelLoginBtn'),
             
-            // Modal inputs
             newMaterialInput: getElement('newMaterialInput'),
             newColourInput: getElement('newColourInput'),
             editWeightInput: getElement('editWeightInput'),
@@ -1369,46 +1352,43 @@
             moveBatchTitle: getElement('moveBatchTitle'),
             mobileNumber: getElement('mobileNumber'),
             
-            // Lists
             pendingList: getElement('pendingList'),
             finishedList: getElement('finishedList'),
             
-            // Stats
             pendingTotalWeight: getElement('pendingTotalWeight'),
             pendingBatchesCount: getElement('pendingBatchesCount'),
             pendingItemsCount: getElement('pendingItemsCount'),
             finishedTotalWeight: getElement('finishedTotalWeight'),
             finishedBatchesCount: getElement('finishedBatchesCount'),
             finishedItemsCount: getElement('finishedItemsCount'),
-            totalEntries: getElement('totalEntries'),
-            storageUsed: getElement('storageUsed'),
-            lastSync: getElement('lastSync'),
             
-            // Badges
-            addBadge: getElement('addBadge'),
-            pendingBadge: getElement('pendingBadge'),
-            finishedBadge: getElement('finishedBadge'),
+            // Backup tab new stat elements
+            pendingBackupStats: getElement('pendingBackupStats'),
+            finishedBackupStats: getElement('finishedBackupStats'),
+            totalBackupStats: getElement('totalBackupStats'),
             
-            // Sync status
+            badges: {
+                add: getElement('addBadge'),
+                pending: getElement('pendingBadge'),
+                finished: getElement('finishedBadge')
+            },
+            
             syncDot: getElement('syncDot'),
             syncText: getElement('syncText'),
             syncStatus: getElement('syncStatus'),
             
-            // Login status
             loginStatus: getElement('loginStatus'),
             userAvatar: getElement('userAvatar'),
             userMobile: getElement('userMobile'),
             
-            // Notification
             notification: getElement('notification'),
             notificationText: getElement('notificationText'),
             
-            // View only message
             viewOnlyMessage: getElement('viewOnlyMessage')
         };
         
         // ============================================
-        // EXPORT FUNCTIONS (unchanged)
+        // EXPORT FUNCTIONS – NOW FULLY SEPARATE PENDING & FINISHED
         // ============================================
         function exportToPDF(type = 'summary') {
             if (!appState.isLoggedIn && type !== 'summary') {
@@ -1420,73 +1400,84 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             
-            // Header
             doc.setFontSize(20);
             doc.setTextColor(39, 174, 96);
             doc.text('Haji Ali Traders', 105, 20, { align: 'center' });
-            
             doc.setFontSize(14);
             doc.setTextColor(128, 128, 128);
             doc.text('Waste Sorting & Inventory Report', 105, 28, { align: 'center' });
-            
             doc.setFontSize(10);
             doc.setTextColor(100, 100, 100);
             doc.text(`Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 105, 35, { align: 'center' });
             
             let yPos = 45;
             
+            const pendingBatches = appState.batches.filter(b => b.status === 'pending');
+            const finishedBatches = appState.batches.filter(b => b.status === 'finished');
+            const pendingTotal = pendingBatches.reduce((sum, b) => sum + b.totalWeight, 0);
+            const finishedTotal = finishedBatches.reduce((sum, b) => sum + b.totalWeight, 0);
+            
             if (type === 'summary') {
-                // Summary Report
+                // === SEPARATE PENDING & FINISHED TABLES ===
                 doc.setFontSize(16);
                 doc.setTextColor(0, 0, 0);
-                doc.text('Summary Report', 20, yPos);
+                doc.text('Pending Batches', 20, yPos);
                 yPos += 10;
                 
-                const pendingBatches = appState.batches.filter(b => b.status === 'pending');
-                const finishedBatches = appState.batches.filter(b => b.status === 'finished');
-                const pendingTotal = pendingBatches.reduce((sum, b) => sum + b.totalWeight, 0);
-                const finishedTotal = finishedBatches.reduce((sum, b) => sum + b.totalWeight, 0);
+                if (pendingBatches.length === 0) {
+                    doc.setFontSize(12);
+                    doc.text('No pending batches', 20, yPos);
+                    yPos += 10;
+                } else {
+                    const pendingTableData = pendingBatches.map(b => [
+                        b.colour, b.material, `${b.totalWeight.toFixed(1)} kg`, 
+                        b.entries.length, new Date(b.lastUpdated).toLocaleDateString()
+                    ]);
+                    doc.autoTable({
+                        startY: yPos,
+                        head: [['Colour', 'Material', 'Weight', 'Entries', 'Last Updated']],
+                        body: pendingTableData,
+                        theme: 'grid',
+                        headStyles: { fillColor: [243, 156, 18] } // pending orange
+                    });
+                    yPos = doc.lastAutoTable.finalY + 15;
+                }
                 
+                doc.setFontSize(16);
+                doc.text('Finished Batches', 20, yPos);
+                yPos += 10;
+                
+                if (finishedBatches.length === 0) {
+                    doc.setFontSize(12);
+                    doc.text('No finished batches', 20, yPos);
+                } else {
+                    const finishedTableData = finishedBatches.map(b => [
+                        b.colour, b.material, `${b.totalWeight.toFixed(1)} kg`, 
+                        b.entries.length, new Date(b.lastUpdated).toLocaleDateString()
+                    ]);
+                    doc.autoTable({
+                        startY: yPos,
+                        head: [['Colour', 'Material', 'Weight', 'Entries', 'Last Updated']],
+                        body: finishedTableData,
+                        theme: 'grid',
+                        headStyles: { fillColor: [52, 152, 219] } // finished blue
+                    });
+                }
+                
+                // Summary totals at bottom
+                const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : yPos + 20;
                 doc.setFontSize(12);
-                doc.text(`Total Batches: ${appState.batches.length}`, 20, yPos);
-                yPos += 7;
-                doc.text(`Pending Stock: ${pendingBatches.length} batches (${pendingTotal.toFixed(1)} kg)`, 20, yPos);
-                yPos += 7;
-                doc.text(`Finished Stock: ${finishedBatches.length} batches (${finishedTotal.toFixed(1)} kg)`, 20, yPos);
-                yPos += 7;
-                doc.text(`Total Weight: ${(pendingTotal + finishedTotal).toFixed(1)} kg`, 20, yPos);
-                yPos += 15;
-                
-                // Batch Summary
-                doc.setFontSize(14);
-                doc.text('Batch Summary', 20, yPos);
-                yPos += 10;
-                
-                const tableData = appState.batches.map(batch => [
-                    batch.colour,
-                    batch.material,
-                    batch.status,
-                    `${batch.totalWeight.toFixed(1)} kg`,
-                    batch.entries.length,
-                    new Date(batch.lastUpdated).toLocaleDateString()
-                ]);
-                
-                doc.autoTable({
-                    startY: yPos,
-                    head: [['Colour', 'Material', 'Status', 'Weight', 'Entries', 'Last Updated']],
-                    body: tableData,
-                    theme: 'grid',
-                    headStyles: { fillColor: [39, 174, 96] }
-                });
+                doc.text(`Total Pending: ${pendingBatches.length} batches / ${pendingTotal.toFixed(1)} kg`, 20, finalY);
+                doc.text(`Total Finished: ${finishedBatches.length} batches / ${finishedTotal.toFixed(1)} kg`, 20, finalY + 7);
+                doc.text(`Overall Total: ${appState.batches.length} batches / ${(pendingTotal+finishedTotal).toFixed(1)} kg`, 20, finalY + 14);
                 
             } else if (type === 'details') {
-                // Detailed Report
+                // Detailed report (grouped by material/colour) – already separates pending/finished columns
                 doc.setFontSize(16);
                 doc.setTextColor(0, 0, 0);
                 doc.text('Detailed Inventory Report', 20, yPos);
                 yPos += 10;
                 
-                // Group by material and colour
                 const groupedData = {};
                 appState.batches.forEach(batch => {
                     const key = `${batch.material}-${batch.colour}`;
@@ -1499,7 +1490,6 @@
                             total: 0
                         };
                     }
-                    
                     if (batch.status === 'pending') {
                         groupedData[key].pending += batch.totalWeight;
                     } else {
@@ -1509,8 +1499,7 @@
                 });
                 
                 const tableData = Object.values(groupedData).map(item => [
-                    item.material,
-                    item.colour,
+                    item.material, item.colour,
                     `${item.pending.toFixed(1)} kg`,
                     `${item.finished.toFixed(1)} kg`,
                     `${item.total.toFixed(1)} kg`
@@ -1518,7 +1507,7 @@
                 
                 doc.autoTable({
                     startY: yPos,
-                    head: [['Material', 'Colour', 'Pending', 'Finished', 'Total']],
+                    head: [['Material', 'Colour', 'Pending (kg)', 'Finished (kg)', 'Total (kg)']],
                     body: tableData,
                     theme: 'grid',
                     headStyles: { fillColor: [39, 174, 96] }
@@ -1537,26 +1526,39 @@
             }
             
             let workbook = XLSX.utils.book_new();
+            const pendingBatches = appState.batches.filter(b => b.status === 'pending');
+            const finishedBatches = appState.batches.filter(b => b.status === 'finished');
             
             if (type === 'full' || type === 'details') {
-                // Main Data Sheet
-                const mainData = appState.batches.map(batch => ({
-                    'Batch ID': batch.id,
-                    'Material': batch.material,
-                    'Colour': batch.colour,
-                    'Status': batch.status.charAt(0).toUpperCase() + batch.status.slice(1),
-                    'Total Weight (kg)': batch.totalWeight,
-                    'Number of Entries': batch.entries.length,
-                    'Created Date': new Date(batch.createdAt).toLocaleDateString(),
-                    'Last Updated': new Date(batch.lastUpdated).toLocaleDateString(),
-                    'Created By': batch.createdBy || 'N/A',
-                    'Updated By': batch.updatedBy || 'N/A'
+                // === PENDING BATCHES SHEET ===
+                const pendingData = pendingBatches.map(b => ({
+                    'Batch ID': b.id,
+                    'Colour': b.colour,
+                    'Material': b.material,
+                    'Total Weight (kg)': b.totalWeight,
+                    'Entries': b.entries.length,
+                    'Created': new Date(b.createdAt).toLocaleDateString(),
+                    'Last Updated': new Date(b.lastUpdated).toLocaleDateString(),
+                    'Created By': b.createdBy || 'N/A'
                 }));
+                const wsPending = XLSX.utils.json_to_sheet(pendingData);
+                XLSX.utils.book_append_sheet(workbook, wsPending, 'Pending Batches');
                 
-                const ws1 = XLSX.utils.json_to_sheet(mainData);
-                XLSX.utils.book_append_sheet(workbook, ws1, 'Batches');
+                // === FINISHED BATCHES SHEET ===
+                const finishedData = finishedBatches.map(b => ({
+                    'Batch ID': b.id,
+                    'Colour': b.colour,
+                    'Material': b.material,
+                    'Total Weight (kg)': b.totalWeight,
+                    'Entries': b.entries.length,
+                    'Finished': new Date(b.finishedAt || b.lastUpdated).toLocaleDateString(),
+                    'Last Updated': new Date(b.lastUpdated).toLocaleDateString(),
+                    'Updated By': b.updatedBy || 'N/A'
+                }));
+                const wsFinished = XLSX.utils.json_to_sheet(finishedData);
+                XLSX.utils.book_append_sheet(workbook, wsFinished, 'Finished Batches');
                 
-                // Entries Sheet
+                // === ENTRIES SHEET (unchanged, includes status column) ===
                 if (appState.entries.length > 0) {
                     const entriesData = appState.entries.map(entry => ({
                         'Entry ID': entry.id,
@@ -1568,71 +1570,42 @@
                         'Time': new Date(entry.timestamp).toLocaleTimeString(),
                         'Added By': entry.addedBy || 'N/A'
                     }));
-                    
-                    const ws2 = XLSX.utils.json_to_sheet(entriesData);
-                    XLSX.utils.book_append_sheet(workbook, ws2, 'Entries');
+                    const wsEntries = XLSX.utils.json_to_sheet(entriesData);
+                    XLSX.utils.book_append_sheet(workbook, wsEntries, 'Entries');
                 }
             }
             
             if (type === 'summary' || type === 'details') {
-                // Summary Sheet
-                const pendingBatches = appState.batches.filter(b => b.status === 'pending');
-                const finishedBatches = appState.batches.filter(b => b.status === 'finished');
-                
+                // === SUMMARY SHEET with separate totals ===
                 const summaryData = [
-                    {
-                        'Metric': 'Total Batches',
-                        'Value': appState.batches.length,
-                        'Details': ''
-                    },
-                    {
-                        'Metric': 'Pending Batches',
-                        'Value': pendingBatches.length,
-                        'Details': `${pendingBatches.reduce((sum, b) => sum + b.totalWeight, 0).toFixed(1)} kg`
-                    },
-                    {
-                        'Metric': 'Finished Batches',
-                        'Value': finishedBatches.length,
-                        'Details': `${finishedBatches.reduce((sum, b) => sum + b.totalWeight, 0).toFixed(1)} kg`
-                    },
-                    {
-                        'Metric': 'Total Weight',
-                        'Value': appState.batches.reduce((sum, b) => sum + b.totalWeight, 0).toFixed(1) + ' kg',
-                        'Details': ''
-                    },
-                    {
-                        'Metric': 'Total Entries',
-                        'Value': appState.entries.length,
-                        'Details': ''
-                    }
+                    { 'Metric': 'Pending Batches', 'Count': pendingBatches.length, 'Weight (kg)': pendingBatches.reduce((s,b)=>s+b.totalWeight,0).toFixed(1) },
+                    { 'Metric': 'Finished Batches', 'Count': finishedBatches.length, 'Weight (kg)': finishedBatches.reduce((s,b)=>s+b.totalWeight,0).toFixed(1) },
+                    { 'Metric': 'Total Batches', 'Count': appState.batches.length, 'Weight (kg)': (appState.batches.reduce((s,b)=>s+b.totalWeight,0)).toFixed(1) },
+                    { 'Metric': 'Total Entries', 'Count': appState.entries.length, 'Weight (kg)': '' }
                 ];
+                const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+                XLSX.utils.book_append_sheet(workbook, wsSummary, 'Summary');
                 
-                const ws3 = XLSX.utils.json_to_sheet(summaryData);
-                XLSX.utils.book_append_sheet(workbook, ws3, 'Summary');
-                
-                // Material-wise Summary
+                // === MATERIAL SUMMARY (still includes both) ===
                 const materialSummary = {};
                 appState.batches.forEach(batch => {
                     if (!materialSummary[batch.material]) {
                         materialSummary[batch.material] = { pending: 0, finished: 0 };
                     }
-                    
                     if (batch.status === 'pending') {
                         materialSummary[batch.material].pending += batch.totalWeight;
                     } else {
                         materialSummary[batch.material].finished += batch.totalWeight;
                     }
                 });
-                
-                const materialData = Object.keys(materialSummary).map(material => ({
-                    'Material': material,
-                    'Pending (kg)': materialSummary[material].pending.toFixed(1),
-                    'Finished (kg)': materialSummary[material].finished.toFixed(1),
-                    'Total (kg)': (materialSummary[material].pending + materialSummary[material].finished).toFixed(1)
+                const materialData = Object.keys(materialSummary).map(m => ({
+                    'Material': m,
+                    'Pending (kg)': materialSummary[m].pending.toFixed(1),
+                    'Finished (kg)': materialSummary[m].finished.toFixed(1),
+                    'Total (kg)': (materialSummary[m].pending + materialSummary[m].finished).toFixed(1)
                 }));
-                
-                const ws4 = XLSX.utils.json_to_sheet(materialData);
-                XLSX.utils.book_append_sheet(workbook, ws4, 'Material Summary');
+                const wsMaterial = XLSX.utils.json_to_sheet(materialData);
+                XLSX.utils.book_append_sheet(workbook, wsMaterial, 'Material Summary');
             }
             
             XLSX.writeFile(workbook, `Haji_Ali_Traders_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -1648,7 +1621,7 @@
         }
         
         // ============================================
-        // AUTHENTICATION FUNCTIONS
+        // AUTHENTICATION FUNCTIONS (unchanged)
         // ============================================
         function showLoginModal() {
             if (elements.loginModal) {
@@ -1663,29 +1636,20 @@
         function loginWithMobile() {
             if (!elements.mobileNumber) return;
             const mobile = elements.mobileNumber.value.trim();
-            
             if (!mobile || mobile.length !== 10 || !/^\d+$/.test(mobile)) {
                 showNotification("Please enter a valid 10-digit mobile number", "error");
                 return;
             }
-            
             if (mobile !== APP_CONFIG.authorizedMobile) {
                 showNotification("Access denied. This mobile number is not authorized.", "error");
                 return;
             }
-            
             appState.isLoggedIn = true;
-            appState.user = {
-                mobile: mobile,
-                loggedInAt: new Date().toISOString()
-            };
-            
+            appState.user = { mobile, loggedInAt: new Date().toISOString() };
             localStorage.setItem('wastesort_auth', JSON.stringify(appState.user));
-            
             updateLoginUI();
             if (elements.loginModal) closeModal(elements.loginModal);
             setEditMode(true);
-            
             showNotification(`✅ Logged in successfully`);
         }
         
@@ -1715,39 +1679,14 @@
         
         function setEditMode(enabled) {
             const editElements = [
-                elements.saveBtn,
-                elements.clearBtn,
-                elements.addMaterialBtn,
-                elements.addColourBtn,
-                elements.clearAllBtn,
-                elements.importBtn,
-                elements.clearPendingBtn,
-                elements.clearFinishedBtn,
+                elements.saveBtn, elements.clearBtn, elements.addMaterialBtn, elements.addColourBtn,
+                elements.clearAllBtn, elements.importBtn, elements.clearPendingBtn, elements.clearFinishedBtn,
                 elements.weightInput
             ];
-            
             editElements.forEach(el => {
-                if (el) {
-                    if (enabled) el.classList.remove('disabled-for-view');
-                    else el.classList.add('disabled-for-view');
-                }
+                if (el) enabled ? el.classList.remove('disabled-for-view') : el.classList.add('disabled-for-view');
             });
-            
-            const editButtons = document.querySelectorAll('.btn-edit, .btn-finish, .btn-move');
-            editButtons.forEach(btn => {
-                if (enabled) btn.classList.remove('disabled-for-view');
-                else btn.classList.add('disabled-for-view');
-            });
-            
-            if (elements.statusButtons) {
-                elements.statusButtons.forEach(btn => {
-                    if (enabled) btn.classList.remove('disabled-for-view');
-                    else btn.classList.add('disabled-for-view');
-                });
-            }
-            
-            const gridButtons = document.querySelectorAll('.grid-btn');
-            gridButtons.forEach(btn => {
+            document.querySelectorAll('.btn-edit, .btn-finish, .btn-move, .status-btn, .grid-btn').forEach(btn => {
                 if (enabled) btn.classList.remove('disabled-for-view');
                 else btn.classList.add('disabled-for-view');
             });
@@ -1774,7 +1713,7 @@
         }
         
         // ============================================
-        // FIREBASE INITIALIZATION
+        // FIREBASE INITIALIZATION (unchanged)
         // ============================================
         async function initializeFirebase() {
             try {
@@ -1783,22 +1722,15 @@
                     showNotification("Running in offline mode. Configure Firebase for cloud sync.", "error");
                     return false;
                 }
-                
                 firebase.initializeApp(firebaseConfig);
                 appState.db = firebase.firestore();
-                
-                await appState.db.enablePersistence()
-                    .catch((err) => {
-                        console.warn("Offline persistence failed:", err);
-                    });
-                
+                await appState.db.enablePersistence().catch((err) => {
+                    console.warn("Offline persistence failed:", err);
+                });
                 appState.firebaseInitialized = true;
                 console.log("Firebase initialized successfully");
-                
                 setupFirebaseListeners();
-                
                 return true;
-                
             } catch (error) {
                 console.error("Firebase initialization error:", error);
                 showNotification("Firebase connection failed. Running offline.", "error");
@@ -1806,117 +1738,67 @@
             }
         }
         
-        // ============================================
-        // FIREBASE REAL-TIME LISTENERS
-        // ============================================
         function setupFirebaseListeners() {
             if (!appState.firebaseInitialized) return;
-            
-            const materialsUnsubscribe = appState.db
-                .collection(APP_CONFIG.firestoreCollections.materials)
+            const materialsUnsubscribe = appState.db.collection(APP_CONFIG.firestoreCollections.materials)
                 .onSnapshot((snapshot) => {
                     const firebaseMaterials = [];
-                    snapshot.forEach(doc => {
-                        firebaseMaterials.push(doc.data().name);
-                    });
-                    
+                    snapshot.forEach(doc => firebaseMaterials.push(doc.data().name));
                     const allMaterials = [...APP_CONFIG.defaultMaterials];
-                    firebaseMaterials.forEach(mat => {
-                        if (!allMaterials.includes(mat)) {
-                            allMaterials.push(mat);
-                        }
-                    });
-                    
+                    firebaseMaterials.forEach(mat => { if (!allMaterials.includes(mat)) allMaterials.push(mat); });
                     appState.materials = allMaterials;
                     renderMaterialGrid();
                 });
-            
-            const coloursUnsubscribe = appState.db
-                .collection(APP_CONFIG.firestoreCollections.colours)
+            const coloursUnsubscribe = appState.db.collection(APP_CONFIG.firestoreCollections.colours)
                 .onSnapshot((snapshot) => {
                     const firebaseColours = [];
-                    snapshot.forEach(doc => {
-                        firebaseColours.push(doc.data().name);
-                    });
-                    
+                    snapshot.forEach(doc => firebaseColours.push(doc.data().name));
                     const allColours = [...APP_CONFIG.defaultColours];
-                    firebaseColours.forEach(col => {
-                        if (!allColours.includes(col)) {
-                            allColours.push(col);
-                        }
-                    });
-                    
+                    firebaseColours.forEach(col => { if (!allColours.includes(col)) allColours.push(col); });
                     appState.colours = allColours;
                     renderColourGrid();
                 });
-            
-            const batchesUnsubscribe = appState.db
-                .collection(APP_CONFIG.firestoreCollections.batches)
+            const batchesUnsubscribe = appState.db.collection(APP_CONFIG.firestoreCollections.batches)
                 .orderBy('lastUpdated', 'desc')
                 .onSnapshot((snapshot) => {
                     const batches = [];
-                    snapshot.forEach(doc => {
-                        batches.push({
-                            id: doc.id,
-                            ...doc.data()
-                        });
-                    });
-                    
+                    snapshot.forEach(doc => batches.push({ id: doc.id, ...doc.data() }));
                     appState.batches = batches;
                     updateAllDisplays();
                     updateSyncStatus(true);
                 });
-            
-            appState.unsubscribeFunctions = [
-                materialsUnsubscribe,
-                coloursUnsubscribe,
-                batchesUnsubscribe
-            ];
+            appState.unsubscribeFunctions = [materialsUnsubscribe, coloursUnsubscribe, batchesUnsubscribe];
         }
         
         // ============================================
-        // HELPER: Generate batch ID from colour, material, status (TRIMMED)
+        // HELPER FUNCTIONS (unchanged)
         // ============================================
         function generateBatchId(colour, material, status) {
             return `${colour.trim()}-${material.trim()}-${status}`.toLowerCase().replace(/\s+/g, '-');
         }
         
-        // ============================================
-        // HELPER: Get or create finished batch for an entry (WITH LEGACY SEARCH)
-        // ============================================
         function getOrCreateFinishedBatch(entry) {
             const targetId = generateBatchId(entry.colour, entry.material, 'finished');
-            
-            // 1. Try exact match (normalized ID)
             let finishedBatch = appState.batches.find(b => b.id === targetId && b.status === 'finished');
-            
-            // 2. If not found, search for any finished batch with same colour/material (legacy ID or wrong status)
             if (!finishedBatch) {
                 const legacyBatch = appState.batches.find(b => 
                     b.colour?.trim().toLowerCase() === entry.colour.trim().toLowerCase() &&
                     b.material?.trim().toLowerCase() === entry.material.trim().toLowerCase() &&
                     b.status === 'finished'
                 );
-                
                 if (legacyBatch) {
-                    // Migrate this batch to the new ID format
                     finishedBatch = legacyBatch;
                     const oldId = finishedBatch.id;
                     finishedBatch.id = targetId;
-                    
-                    // Update localStorage and Firestore if possible
                     if (appState.firebaseInitialized && appState.isOnline) {
                         appState.db.collection(APP_CONFIG.firestoreCollections.batches).doc(oldId).delete()
-                            .then(() => saveBatchToFirebase(finishedBatch))
-                            .catch(console.error);
+                            .then(() => saveBatchToFirebase(finishedBatch)).catch(console.error);
                     } else {
                         queueForSync({ type: 'batch_delete', id: oldId });
                         queueForSync({ type: 'batch_update', data: finishedBatch });
                     }
                 }
             }
-            
-            // 3. If still not found, create new finished batch
             if (!finishedBatch) {
                 finishedBatch = {
                     id: targetId,
@@ -1932,7 +1814,6 @@
                 };
                 appState.batches.push(finishedBatch);
             }
-            
             return finishedBatch;
         }
         
@@ -1945,24 +1826,20 @@
                 showLoginModal();
                 return;
             }
-            
             if (!appState.selectedMaterial) {
                 showNotification("Please select a material", "error");
                 return;
             }
-            
             if (!appState.selectedColour) {
                 showNotification("Please select a colour", "error");
                 return;
             }
-            
             const weight = parseFloat(elements.weightInput?.value);
             if (!weight || weight <= 0 || isNaN(weight)) {
                 showNotification("Please enter a valid weight", "error");
                 if (elements.weightInput) elements.weightInput.focus();
                 return;
             }
-            
             try {
                 const entry = {
                     id: Date.now().toString(),
@@ -1974,14 +1851,11 @@
                     deviceId: getDeviceId(),
                     addedBy: appState.user.mobile
                 };
-                
                 saveToLocalStorage(entry);
                 
                 if (entry.status === 'pending') {
-                    // Pending: status-aware batch ID
                     const batchId = generateBatchId(entry.colour, entry.material, 'pending');
                     let batch = appState.batches.find(b => b.id === batchId);
-                    
                     if (!batch) {
                         batch = {
                             id: batchId,
@@ -2001,33 +1875,27 @@
                         batch.lastUpdated = new Date().toISOString();
                         batch.updatedBy = appState.user.mobile;
                     }
-                    
                     if (appState.firebaseInitialized && appState.isOnline) {
                         await saveBatchToFirebase(batch);
                     } else {
                         queueForSync({ type: 'batch_update', data: batch });
                     }
                 } else {
-                    // Finished: merge into existing finished batch (using robust finder)
                     const finishedBatch = getOrCreateFinishedBatch(entry);
                     finishedBatch.entries.push(entry);
                     finishedBatch.totalWeight = parseFloat((finishedBatch.totalWeight + entry.weight).toFixed(2));
                     finishedBatch.lastUpdated = new Date().toISOString();
                     finishedBatch.updatedBy = appState.user.mobile;
                     finishedBatch.finishedAt = new Date().toISOString();
-                    
                     if (appState.firebaseInitialized && appState.isOnline) {
                         await saveBatchToFirebase(finishedBatch);
                     } else {
                         queueForSync({ type: 'batch_update', data: finishedBatch });
                     }
                 }
-                
                 updateAllDisplays();
                 showNotification(`✅ ${entry.weight}kg ${entry.material} (${entry.colour}) saved as ${entry.status}`);
-                
                 clearForm();
-                
             } catch (error) {
                 console.error("Save error:", error);
                 showNotification("Error saving entry", "error");
@@ -2037,10 +1905,7 @@
         async function saveBatchToFirebase(batch) {
             if (!appState.firebaseInitialized) return;
             try {
-                await appState.db
-                    .collection(APP_CONFIG.firestoreCollections.batches)
-                    .doc(batch.id)
-                    .set(batch);
+                await appState.db.collection(APP_CONFIG.firestoreCollections.batches).doc(batch.id).set(batch);
             } catch (error) {
                 console.error("Firebase save error:", error);
                 throw error;
@@ -2053,32 +1918,22 @@
                 showLoginModal();
                 return;
             }
-            
             if (!materialName.trim()) {
                 showNotification("Please enter a material name", "error");
                 return;
             }
-            
             materialName = materialName.trim();
-            
             if (appState.materials.includes(materialName)) {
                 showNotification("Material already exists", "error");
                 return;
             }
-            
             appState.materials.push(materialName);
             renderMaterialGrid();
-            
             if (appState.firebaseInitialized) {
                 try {
-                    await appState.db
-                        .collection(APP_CONFIG.firestoreCollections.materials)
+                    await appState.db.collection(APP_CONFIG.firestoreCollections.materials)
                         .doc(materialName.toLowerCase().replace(/\s+/g, '-'))
-                        .set({
-                            name: materialName,
-                            addedAt: new Date().toISOString(),
-                            addedBy: appState.user.mobile
-                        });
+                        .set({ name: materialName, addedAt: new Date().toISOString(), addedBy: appState.user.mobile });
                     showNotification(`✅ New material "${materialName}" added`);
                 } catch (error) {
                     console.error("Error saving material to Firebase:", error);
@@ -2087,7 +1942,6 @@
             } else {
                 showNotification(`✅ New material "${materialName}" added locally`);
             }
-            
             if (elements.materialModal) closeModal(elements.materialModal);
             selectMaterial(materialName);
         }
@@ -2098,32 +1952,22 @@
                 showLoginModal();
                 return;
             }
-            
             if (!colourName.trim()) {
                 showNotification("Please enter a colour name", "error");
                 return;
             }
-            
             colourName = colourName.trim();
-            
             if (appState.colours.includes(colourName)) {
                 showNotification("Colour already exists", "error");
                 return;
             }
-            
             appState.colours.push(colourName);
             renderColourGrid();
-            
             if (appState.firebaseInitialized) {
                 try {
-                    await appState.db
-                        .collection(APP_CONFIG.firestoreCollections.colours)
+                    await appState.db.collection(APP_CONFIG.firestoreCollections.colours)
                         .doc(colourName.toLowerCase().replace(/\s+/g, '-'))
-                        .set({
-                            name: colourName,
-                            addedAt: new Date().toISOString(),
-                            addedBy: appState.user.mobile
-                        });
+                        .set({ name: colourName, addedAt: new Date().toISOString(), addedBy: appState.user.mobile });
                     showNotification(`✅ New colour "${colourName}" added`);
                 } catch (error) {
                     console.error("Error saving colour to Firebase:", error);
@@ -2132,7 +1976,6 @@
             } else {
                 showNotification(`✅ New colour "${colourName}" added locally`);
             }
-            
             if (elements.colourModal) closeModal(elements.colourModal);
             selectColour(colourName);
         }
@@ -2143,15 +1986,12 @@
                 showLoginModal();
                 return;
             }
-            
             const batch = appState.batches.find(b => b.id === batchId);
             if (!batch) return;
-            
             const oldWeight = batch.totalWeight;
             batch.totalWeight = parseFloat(newWeight);
             batch.lastUpdated = new Date().toISOString();
             batch.updatedBy = appState.user.mobile;
-            
             if (appState.firebaseInitialized && appState.isOnline) {
                 try {
                     await saveBatchToFirebase(batch);
@@ -2163,28 +2003,22 @@
                 queueForSync({ type: 'batch_update', data: batch });
                 showNotification(`✅ Weight updated locally (will sync when online)`);
             }
-            
             updateAllDisplays();
             if (elements.editWeightModal) closeModal(elements.editWeightModal);
         }
         
-        // ============================================
-        // NEW: Move partial weight from pending to finished (FIXED)
-        // ============================================
         function openMoveWeightModal(batchId) {
             if (!appState.isLoggedIn) {
                 showNotification("Please login to move weight", "error");
                 showLoginModal();
                 return;
             }
-            
             const batch = appState.batches.find(b => b.id === batchId);
             if (!batch) return;
             if (batch.status !== 'pending') {
                 showNotification("Only pending batches can be moved", "error");
                 return;
             }
-            
             appState.movingBatch = batch;
             if (elements.moveBatchTitle) {
                 elements.moveBatchTitle.textContent = `Move weight from ${batch.colour} ${batch.material} (max ${batch.totalWeight.toFixed(1)} kg)`;
@@ -2204,24 +2038,19 @@
                 showLoginModal();
                 return;
             }
-            
             const pendingBatch = appState.movingBatch;
             if (!pendingBatch) return;
-            
             const moveWeight = parseFloat(elements.moveWeightInput?.value);
             if (!moveWeight || moveWeight <= 0 || isNaN(moveWeight)) {
                 showNotification("Please enter a valid weight to move", "error");
                 if (elements.moveWeightInput) elements.moveWeightInput.focus();
                 return;
             }
-            
             if (moveWeight >= pendingBatch.totalWeight) {
                 showNotification("Use 'Mark Finished' to move the entire batch", "error");
                 return;
             }
-            
             try {
-                // 1. Create a finished entry for the moved weight
                 const movedEntry = {
                     id: Date.now().toString() + '-move',
                     material: pendingBatch.material,
@@ -2233,14 +2062,11 @@
                     addedBy: appState.user.mobile,
                     movedFrom: pendingBatch.id
                 };
-                
-                // 2. Save entry to localStorage
                 const entries = JSON.parse(localStorage.getItem('wastesort_entries') || '[]');
                 entries.push(movedEntry);
                 localStorage.setItem('wastesort_entries', JSON.stringify(entries));
                 appState.entries.push(movedEntry);
                 
-                // 3. Merge into finished batch (now using the robust finder)
                 const finishedBatch = getOrCreateFinishedBatch(movedEntry);
                 finishedBatch.entries.push(movedEntry);
                 finishedBatch.totalWeight = parseFloat((finishedBatch.totalWeight + moveWeight).toFixed(2));
@@ -2248,14 +2074,10 @@
                 finishedBatch.updatedBy = appState.user.mobile;
                 finishedBatch.finishedAt = new Date().toISOString();
                 
-                // 4. Reduce pending batch weight
                 pendingBatch.totalWeight = parseFloat((pendingBatch.totalWeight - moveWeight).toFixed(2));
                 pendingBatch.lastUpdated = new Date().toISOString();
                 pendingBatch.updatedBy = appState.user.mobile;
                 
-                // 5. Update state (pendingBatch and finishedBatch are already references in appState.batches)
-                
-                // 6. Sync with Firebase / offline queue
                 if (appState.firebaseInitialized && appState.isOnline) {
                     try {
                         await saveBatchToFirebase(pendingBatch);
@@ -2270,51 +2092,38 @@
                     queueForSync({ type: 'batch_update', data: finishedBatch });
                     showNotification(`✅ Moved ${moveWeight}kg to finished batch (offline, will sync later)`);
                 }
-                
-                // 7. Update UI
                 updateAllDisplays();
                 closeModal(elements.moveWeightModal);
                 appState.movingBatch = null;
-                
             } catch (error) {
                 console.error("Move weight error:", error);
                 showNotification("Error moving weight", "error");
             }
         }
         
-        // ============================================
-        // MARK BATCH AS FINISHED (MERGE) - improved with legacy search
-        // ============================================
         async function markBatchAsFinished(batchId) {
             if (!appState.isLoggedIn) {
                 showNotification("Please login to mark batches as finished", "error");
                 showLoginModal();
                 return;
             }
-        
             const pendingBatch = appState.batches.find(b => b.id === batchId);
             if (!pendingBatch) return;
             if (pendingBatch.status !== 'pending') {
                 showNotification("This batch is already finished", "error");
                 return;
             }
-            if (!confirm(`Mark ${pendingBatch.colour} ${pendingBatch.material} (${pendingBatch.totalWeight}kg) as finished?`)) {
-                return;
-            }
-        
+            if (!confirm(`Mark ${pendingBatch.colour} ${pendingBatch.material} (${pendingBatch.totalWeight}kg) as finished?`)) return;
+            
             const finishedBatchId = generateBatchId(pendingBatch.colour, pendingBatch.material, 'finished');
             let finishedBatch = appState.batches.find(b => b.id === finishedBatchId && b.status === 'finished');
-            
-            // If not found, search for any finished batch with same colour/material (legacy)
             if (!finishedBatch) {
                 finishedBatch = appState.batches.find(b => 
                     b.colour?.trim().toLowerCase() === pendingBatch.colour.trim().toLowerCase() &&
                     b.material?.trim().toLowerCase() === pendingBatch.material.trim().toLowerCase() &&
                     b.status === 'finished'
                 );
-                
                 if (finishedBatch) {
-                    // Migrate to new ID
                     const oldId = finishedBatch.id;
                     finishedBatch.id = finishedBatchId;
                     if (appState.firebaseInitialized && appState.isOnline) {
@@ -2326,17 +2135,16 @@
                     }
                 }
             }
-        
+            
             if (finishedBatch) {
-                // Merge pending batch into existing finished batch
                 finishedBatch.entries.push(...pendingBatch.entries);
                 finishedBatch.totalWeight = parseFloat((finishedBatch.totalWeight + pendingBatch.totalWeight).toFixed(2));
                 finishedBatch.lastUpdated = new Date().toISOString();
                 finishedBatch.updatedBy = appState.user.mobile;
                 finishedBatch.finishedAt = new Date().toISOString();
-        
+                
                 appState.batches = appState.batches.filter(b => b.id !== pendingBatch.id);
-        
+                
                 if (appState.firebaseInitialized && appState.isOnline) {
                     try {
                         await appState.db.collection(APP_CONFIG.firestoreCollections.batches).doc(pendingBatch.id).delete();
@@ -2352,17 +2160,16 @@
                     showNotification(`✅ Merged into existing finished batch (offline, will sync later)`);
                 }
             } else {
-                // Convert pending batch to finished (no existing finished batch)
                 const oldId = pendingBatch.id;
                 pendingBatch.status = 'finished';
                 pendingBatch.finishedAt = new Date().toISOString();
                 pendingBatch.lastUpdated = new Date().toISOString();
                 pendingBatch.finishedBy = appState.user.mobile;
                 pendingBatch.id = finishedBatchId;
-        
+                
                 appState.batches = appState.batches.filter(b => b.id !== oldId);
                 appState.batches.push(pendingBatch);
-        
+                
                 if (appState.firebaseInitialized && appState.isOnline) {
                     try {
                         await appState.db.collection(APP_CONFIG.firestoreCollections.batches).doc(oldId).delete();
@@ -2378,48 +2185,33 @@
                     showNotification(`✅ Batch marked as finished locally`);
                 }
             }
-        
             updateAllDisplays();
         }
         
-        // ============================================
-        // CLEAR PENDING / CLEAR FINISHED (status-aware filtering)
-        // ============================================
         async function clearPendingBatches() {
             if (!appState.isLoggedIn) {
                 showNotification("Please login to clear pending batches", "error");
                 showLoginModal();
                 return;
             }
-            
             const pendingBatches = appState.batches.filter(b => b.status === 'pending');
             if (pendingBatches.length === 0) {
                 showNotification("No pending batches to clear", "error");
                 return;
             }
-            
-            if (!confirm(`Are you sure you want to delete ALL ${pendingBatches.length} pending batches? This cannot be undone!`)) {
-                return;
-            }
+            if (!confirm(`Are you sure you want to delete ALL ${pendingBatches.length} pending batches? This cannot be undone!`)) return;
             
             const pendingBatchIds = pendingBatches.map(b => b.id);
-            
-            // Remove from appState.batches
             appState.batches = appState.batches.filter(b => b.status !== 'pending');
-            
-            // Remove corresponding entries – only pending entries that belong to these batches
             appState.entries = appState.entries.filter(entry => {
                 if (entry.status !== 'pending') return true;
                 const entryBatchId = generateBatchId(entry.colour, entry.material, 'pending');
                 return !pendingBatchIds.includes(entryBatchId);
             });
-            
-            // Remove any pending sync items that refer to these batches
             appState.pendingSync = appState.pendingSync.filter(item => 
                 !(item.type === 'batch_update' && pendingBatchIds.includes(item.data.id)) &&
                 !(item.type === 'batch_delete' && pendingBatchIds.includes(item.id))
             );
-            
             localStorage.setItem('wastesort_batches', JSON.stringify(appState.batches));
             localStorage.setItem('wastesort_entries', JSON.stringify(appState.entries));
             localStorage.setItem('wastesort_pending_sync', JSON.stringify(appState.pendingSync));
@@ -2435,7 +2227,6 @@
                     showNotification("Pending batches cleared locally, but some may remain in cloud", "error");
                 }
             }
-            
             updateAllDisplays();
             showNotification(`✅ Cleared ${pendingBatchIds.length} pending batches`);
         }
@@ -2446,33 +2237,24 @@
                 showLoginModal();
                 return;
             }
-            
             const finishedBatches = appState.batches.filter(b => b.status === 'finished');
             if (finishedBatches.length === 0) {
                 showNotification("No finished batches to clear", "error");
                 return;
             }
-            
-            if (!confirm(`Are you sure you want to delete ALL ${finishedBatches.length} finished batches? This cannot be undone!`)) {
-                return;
-            }
+            if (!confirm(`Are you sure you want to delete ALL ${finishedBatches.length} finished batches? This cannot be undone!`)) return;
             
             const finishedBatchIds = finishedBatches.map(b => b.id);
-            
             appState.batches = appState.batches.filter(b => b.status !== 'finished');
-            
-            // Remove corresponding entries – only finished entries that belong to these batches
             appState.entries = appState.entries.filter(entry => {
                 if (entry.status !== 'finished') return true;
                 const entryBatchId = generateBatchId(entry.colour, entry.material, 'finished');
                 return !finishedBatchIds.includes(entryBatchId);
             });
-            
             appState.pendingSync = appState.pendingSync.filter(item => 
                 !(item.type === 'batch_update' && finishedBatchIds.includes(item.data.id)) &&
                 !(item.type === 'batch_delete' && finishedBatchIds.includes(item.id))
             );
-            
             localStorage.setItem('wastesort_batches', JSON.stringify(appState.batches));
             localStorage.setItem('wastesort_entries', JSON.stringify(appState.entries));
             localStorage.setItem('wastesort_pending_sync', JSON.stringify(appState.pendingSync));
@@ -2488,20 +2270,18 @@
                     showNotification("Finished batches cleared locally, but some may remain in cloud", "error");
                 }
             }
-            
             updateAllDisplays();
             showNotification(`✅ Cleared ${finishedBatchIds.length} finished batches`);
         }
         
         // ============================================
-        // LOCAL STORAGE FUNCTIONS
+        // LOCAL STORAGE FUNCTIONS (unchanged)
         // ============================================
         function saveToLocalStorage(entry) {
             try {
                 const entries = JSON.parse(localStorage.getItem('wastesort_entries') || '[]');
                 entries.push(entry);
                 localStorage.setItem('wastesort_entries', JSON.stringify(entries));
-                
                 localStorage.setItem('wastesort_batches', JSON.stringify(appState.batches));
                 localStorage.setItem('wastesort_materials', JSON.stringify(appState.materials));
                 localStorage.setItem('wastesort_colours', JSON.stringify(appState.colours));
@@ -2521,20 +2301,16 @@
                 if (batches.length > 0) appState.batches = batches;
                 if (materials.length > 0) appState.materials = [...new Set([...APP_CONFIG.defaultMaterials, ...materials])];
                 if (colours.length > 0) appState.colours = [...new Set([...APP_CONFIG.defaultColours, ...colours])];
-                
             } catch (error) {
                 console.error("LocalStorage load error:", error);
             }
         }
         
         // ============================================
-        // SYNC FUNCTIONS – handle both update and delete
+        // SYNC FUNCTIONS (unchanged)
         // ============================================
         function queueForSync(item) {
-            appState.pendingSync.push({
-                ...item,
-                timestamp: new Date().toISOString()
-            });
+            appState.pendingSync.push({ ...item, timestamp: new Date().toISOString() });
             localStorage.setItem('wastesort_pending_sync', JSON.stringify(appState.pendingSync));
             updateSyncStatus(false);
         }
@@ -2542,16 +2318,11 @@
         async function processPendingSync() {
             if (!appState.firebaseInitialized || !appState.isOnline) return;
             if (appState.pendingSync.length === 0) return;
-            
             try {
                 for (const item of appState.pendingSync) {
-                    if (item.type === 'batch_update') {
-                        await saveBatchToFirebase(item.data);
-                    } else if (item.type === 'batch_delete') {
-                        await appState.db.collection(APP_CONFIG.firestoreCollections.batches).doc(item.id).delete();
-                    }
+                    if (item.type === 'batch_update') await saveBatchToFirebase(item.data);
+                    else if (item.type === 'batch_delete') await appState.db.collection(APP_CONFIG.firestoreCollections.batches).doc(item.id).delete();
                 }
-                
                 appState.pendingSync = [];
                 localStorage.removeItem('wastesort_pending_sync');
                 updateSyncStatus(true);
@@ -2567,24 +2338,22 @@
                     elements.syncDot.classList.remove('offline');
                     elements.syncText.textContent = 'Synced';
                     appState.lastSyncTime = new Date();
-                    if (elements.lastSync) elements.lastSync.textContent = formatTime(appState.lastSyncTime);
                 } else {
                     elements.syncDot.classList.add('offline');
                     elements.syncText.textContent = 'Offline';
-                    if (elements.syncStatus) {
-                        elements.syncStatus.title = `${appState.pendingSync.length} pending changes`;
-                    }
+                    if (elements.syncStatus) elements.syncStatus.title = `${appState.pendingSync.length} pending changes`;
                 }
             }
-            
-            if (elements.addBadge) {
+            if (elements.badges.add) {
                 if (appState.pendingSync.length > 0) {
-                    elements.addBadge.textContent = appState.pendingSync.length;
-                    elements.addBadge.style.display = 'block';
+                    elements.badges.add.textContent = appState.pendingSync.length;
+                    elements.badges.add.style.display = 'block';
                 } else {
-                    elements.addBadge.style.display = 'none';
+                    elements.badges.add.style.display = 'none';
                 }
             }
+            // Update backup sync time display
+            updateBackupStats();
         }
         
         // ============================================
@@ -2593,13 +2362,10 @@
         function renderMaterialGrid() {
             if (!elements.materialGrid) return;
             elements.materialGrid.innerHTML = '';
-            
             appState.materials.forEach(material => {
                 const button = document.createElement('button');
                 button.className = 'grid-btn';
-                if (appState.selectedMaterial === material) {
-                    button.classList.add('selected');
-                }
+                if (appState.selectedMaterial === material) button.classList.add('selected');
                 button.textContent = material;
                 button.dataset.value = material;
                 button.addEventListener('click', () => selectMaterial(material));
@@ -2610,13 +2376,10 @@
         function renderColourGrid() {
             if (!elements.colourGrid) return;
             elements.colourGrid.innerHTML = '';
-            
             appState.colours.forEach(colour => {
                 const button = document.createElement('button');
                 button.className = 'grid-btn';
-                if (appState.selectedColour === colour) {
-                    button.classList.add('selected');
-                }
+                if (appState.selectedColour === colour) button.classList.add('selected');
                 button.textContent = colour;
                 button.dataset.value = colour;
                 button.addEventListener('click', () => selectColour(colour));
@@ -2626,46 +2389,25 @@
         
         function renderBatchList(listElement, batches) {
             if (!listElement) return;
-            
             if (batches.length === 0) {
-                listElement.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-icon">📭</div>
-                        <h3>No batches found</h3>
-                        <p>Add entries to see them here</p>
-                    </div>
-                `;
+                listElement.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><h3>No batches found</h3><p>Add entries to see them here</p></div>`;
                 return;
             }
-            
             let html = '';
-            
             batches.forEach(batch => {
                 const isPending = batch.status === 'pending';
                 const date = new Date(batch.lastUpdated).toLocaleDateString();
                 const time = new Date(batch.lastUpdated).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                
                 let actionsHtml = '';
                 if (isPending) {
                     actionsHtml = `
-                        <button class="action-small btn-edit" onclick="openEditWeightModal('${batch.id}')">
-                            ⚖️ Edit Weight
-                        </button>
-                        <button class="action-small btn-move" onclick="openMoveWeightModal('${batch.id}')">
-                            ➡️ Move
-                        </button>
-                        <button class="action-small btn-finish" onclick="markBatchAsFinished('${batch.id}')">
-                            ✅ Mark Finished
-                        </button>
+                        <button class="action-small btn-edit" onclick="openEditWeightModal('${batch.id}')">⚖️ Edit Weight</button>
+                        <button class="action-small btn-move" onclick="openMoveWeightModal('${batch.id}')">➡️ Move</button>
+                        <button class="action-small btn-finish" onclick="markBatchAsFinished('${batch.id}')">✅ Mark Finished</button>
                     `;
                 } else {
-                    actionsHtml = `
-                        <button class="action-small btn-edit" onclick="openEditWeightModal('${batch.id}')">
-                            ⚖️ Edit Weight
-                        </button>
-                    `;
+                    actionsHtml = `<button class="action-small btn-edit" onclick="openEditWeightModal('${batch.id}')">⚖️ Edit Weight</button>`;
                 }
-                
                 html += `
                     <div class="batch-card ${batch.status}">
                         <div class="batch-header">
@@ -2673,28 +2415,40 @@
                                 <span class="color-dot" style="background: ${getColorCode(batch.colour)}"></span>
                                 ${batch.colour} • ${batch.material}
                             </div>
-                            <div class="batch-weight">
-                                ${batch.totalWeight.toFixed(1)} kg
-                            </div>
+                            <div class="batch-weight">${batch.totalWeight.toFixed(1)} kg</div>
                         </div>
                         <div class="batch-details">
                             <span>${batch.entries.length} entries</span>
                             <span>Updated: ${date} ${time}</span>
                         </div>
-                        <div class="batch-actions">
-                            ${actionsHtml}
-                        </div>
+                        <div class="batch-actions">${actionsHtml}</div>
                     </div>
                 `;
             });
-            
             listElement.innerHTML = html;
+        }
+        
+        // NEW: Update Backup tab stats – separate pending & finished
+        function updateBackupStats() {
+            if (!elements.pendingBackupStats || !elements.finishedBackupStats || !elements.totalBackupStats) return;
+            
+            const pendingBatches = appState.batches.filter(b => b.status === 'pending');
+            const finishedBatches = appState.batches.filter(b => b.status === 'finished');
+            const pendingWeight = pendingBatches.reduce((sum, b) => sum + b.totalWeight, 0);
+            const finishedWeight = finishedBatches.reduce((sum, b) => sum + b.totalWeight, 0);
+            
+            elements.pendingBackupStats.textContent = `${pendingBatches.length} (${pendingWeight.toFixed(1)} kg)`;
+            elements.finishedBackupStats.textContent = `${finishedBatches.length} (${finishedWeight.toFixed(1)} kg)`;
+            
+            const dataSize = JSON.stringify(appState).length;
+            const kb = (dataSize / 1024).toFixed(1);
+            const syncTime = appState.lastSyncTime ? formatTime(appState.lastSyncTime) : '-';
+            elements.totalBackupStats.innerHTML = `${appState.entries.length}<br><span style="font-size:0.9rem;">${kb} KB | ${syncTime}</span>`;
         }
         
         function updateAllDisplays() {
             const pendingBatches = appState.batches.filter(b => b.status === 'pending');
             const finishedBatches = appState.batches.filter(b => b.status === 'finished');
-            
             const pendingTotal = pendingBatches.reduce((sum, b) => sum + b.totalWeight, 0);
             const finishedTotal = finishedBatches.reduce((sum, b) => sum + b.totalWeight, 0);
             const pendingEntries = pendingBatches.reduce((sum, b) => sum + b.entries.length, 0);
@@ -2706,17 +2460,14 @@
             if (elements.finishedTotalWeight) elements.finishedTotalWeight.textContent = finishedTotal.toFixed(1);
             if (elements.finishedBatchesCount) elements.finishedBatchesCount.textContent = finishedBatches.length;
             if (elements.finishedItemsCount) elements.finishedItemsCount.textContent = finishedEntries;
-            if (elements.totalEntries) elements.totalEntries.textContent = appState.entries.length;
             
-            if (elements.pendingBadge) elements.pendingBadge.textContent = pendingBatches.length;
-            if (elements.finishedBadge) elements.finishedBadge.textContent = finishedBatches.length;
-            
-            const dataSize = JSON.stringify(appState).length;
-            const kb = (dataSize / 1024).toFixed(1);
-            if (elements.storageUsed) elements.storageUsed.textContent = `${kb} KB`;
+            if (elements.badges.pending) elements.badges.pending.textContent = pendingBatches.length;
+            if (elements.badges.finished) elements.badges.finished.textContent = finishedBatches.length;
             
             renderBatchList(elements.pendingList, pendingBatches);
             renderBatchList(elements.finishedList, finishedBatches);
+            
+            updateBackupStats(); // new call
         }
         
         // ============================================
@@ -2738,7 +2489,6 @@
             if (elements.weightInput) elements.weightInput.value = '';
             renderMaterialGrid();
             renderColourGrid();
-            
             if (elements.statusButtons) {
                 elements.statusButtons.forEach(btn => {
                     btn.classList.remove('selected');
@@ -2754,25 +2504,17 @@
             if (!modal) return;
             modal.style.display = 'flex';
             document.body.style.overflow = 'hidden';
-            
-            if (modal === elements.materialModal && elements.newMaterialInput) {
-                elements.newMaterialInput.focus();
-            } else if (modal === elements.colourModal && elements.newColourInput) {
-                elements.newColourInput.focus();
-            } else if (modal === elements.editWeightModal && elements.editWeightInput) {
-                elements.editWeightInput.focus();
-            } else if (modal === elements.moveWeightModal && elements.moveWeightInput) {
-                elements.moveWeightInput.focus();
-            } else if (modal === elements.loginModal && elements.mobileNumber) {
-                elements.mobileNumber.focus();
-            }
+            if (modal === elements.materialModal && elements.newMaterialInput) elements.newMaterialInput.focus();
+            else if (modal === elements.colourModal && elements.newColourInput) elements.newColourInput.focus();
+            else if (modal === elements.editWeightModal && elements.editWeightInput) elements.editWeightInput.focus();
+            else if (modal === elements.moveWeightModal && elements.moveWeightInput) elements.moveWeightInput.focus();
+            else if (modal === elements.loginModal && elements.mobileNumber) elements.mobileNumber.focus();
         }
         
         function closeModal(modal) {
             if (!modal) return;
             modal.style.display = 'none';
             document.body.style.overflow = 'auto';
-            
             if (elements.newMaterialInput) elements.newMaterialInput.value = '';
             if (elements.newColourInput) elements.newColourInput.value = '';
             if (elements.editWeightInput) elements.editWeightInput.value = '';
@@ -2787,17 +2529,11 @@
                 showLoginModal();
                 return;
             }
-            
             const batch = appState.batches.find(b => b.id === batchId);
             if (!batch) return;
-            
             appState.editingBatch = batch;
-            if (elements.editBatchTitle) {
-                elements.editBatchTitle.textContent = `Edit weight for ${batch.colour} ${batch.material}`;
-            }
-            if (elements.editWeightInput) {
-                elements.editWeightInput.value = batch.totalWeight;
-            }
+            if (elements.editBatchTitle) elements.editBatchTitle.textContent = `Edit weight for ${batch.colour} ${batch.material}`;
+            if (elements.editWeightInput) elements.editWeightInput.value = batch.totalWeight;
             openModal(elements.editWeightModal);
         }
         
@@ -2805,13 +2541,9 @@
             if (!elements.notification || !elements.notificationText) return;
             elements.notificationText.textContent = message;
             elements.notification.className = 'notification';
-            if (type === 'error') {
-                elements.notification.classList.add('error');
-            }
+            if (type === 'error') elements.notification.classList.add('error');
             elements.notification.style.display = 'block';
-            setTimeout(() => {
-                if (elements.notification) elements.notification.style.display = 'none';
-            }, 3000);
+            setTimeout(() => { if (elements.notification) elements.notification.style.display = 'none'; }, 3000);
         }
         
         // ============================================
@@ -2828,37 +2560,18 @@
         
         function getColorCode(colour) {
             const colorMap = {
-                'red': '#e74c3c',
-                'orange': '#e67e22',
-                'yellow': '#f1c40f',
-                'green': '#2ecc71',
-                'white': '#ecf0f1',
-                'grey': '#95a5a6',
-                'black': '#2c3e50',
-                'blue': '#3498db',
-                'purple': '#9b59b6',
-                'pink': '#e84393',
-                'brown': '#8B4513',
-                'maroon': '#800000',
-                'teal': '#1abc9c',
-                'navy': '#2c3e50',
-                'olive': '#808000',
-                'lime': '#00ff00',
-                'cyan': '#00ffff',
-                'magenta': '#ff00ff'
+                'red': '#e74c3c', 'orange': '#e67e22', 'yellow': '#f1c40f', 'green': '#2ecc71',
+                'white': '#ecf0f1', 'grey': '#95a5a6', 'black': '#2c3e50', 'blue': '#3498db',
+                'purple': '#9b59b6', 'pink': '#e84393', 'brown': '#8B4513', 'maroon': '#800000',
+                'teal': '#1abc9c', 'navy': '#2c3e50', 'olive': '#808000', 'lime': '#00ff00',
+                'cyan': '#00ffff', 'magenta': '#ff00ff'
             };
-            
             const lowerColour = colour.toLowerCase();
             for (const [key, value] of Object.entries(colorMap)) {
-                if (lowerColour.includes(key)) {
-                    return value;
-                }
+                if (lowerColour.includes(key)) return value;
             }
-            
             let hash = 0;
-            for (let i = 0; i < colour.length; i++) {
-                hash = colour.charCodeAt(i) + ((hash << 5) - hash);
-            }
+            for (let i = 0; i < colour.length; i++) hash = colour.charCodeAt(i) + ((hash << 5) - hash);
             const hue = hash % 360;
             return `hsl(${hue}, 70%, 60%)`;
         }
@@ -2869,20 +2582,15 @@
         }
         
         // ============================================
-        // MIGRATION – Add status to batch IDs, CORRECT batch.status using entries
+        // MIGRATION FUNCTION (unchanged)
         // ============================================
         async function migrateBatchIds() {
             console.log("Running comprehensive data migration...");
             let migrated = false;
-        
-            // ---- Migrate localStorage batches ----
             const localBatches = JSON.parse(localStorage.getItem('wastesort_batches') || '[]');
             const updatedLocalBatches = localBatches.map(batch => {
                 let changed = false;
-                
-                // 1. Determine correct status if missing
                 if (!batch.status) {
-                    // Look at entries (if available) to infer status
                     const batchEntries = appState.entries.filter(e => 
                         e.colour?.trim().toLowerCase() === batch.colour?.trim().toLowerCase() &&
                         e.material?.trim().toLowerCase() === batch.material?.trim().toLowerCase()
@@ -2891,8 +2599,6 @@
                     batch.status = hasFinishedEntry ? 'finished' : 'pending';
                     changed = true;
                 }
-                
-                // 2. Normalize ID to include status
                 const oldId = batch.id;
                 if (!oldId.endsWith('-pending') && !oldId.endsWith('-finished')) {
                     const newId = generateBatchId(batch.colour, batch.material, batch.status);
@@ -2901,58 +2607,38 @@
                     migrated = true;
                     console.log(`Migrated batch: ${oldId} → ${newId} (status: ${batch.status})`);
                 }
-                
                 return changed ? batch : batch;
             });
-            
             if (migrated) {
                 localStorage.setItem('wastesort_batches', JSON.stringify(updatedLocalBatches));
                 appState.batches = updatedLocalBatches;
                 console.log("✅ localStorage batches migrated and statuses corrected");
             }
-        
-            // ---- Migrate Firestore documents (if online) ----
             if (appState.firebaseInitialized && appState.isOnline) {
                 const batchesRef = appState.db.collection(APP_CONFIG.firestoreCollections.batches);
                 const snapshot = await batchesRef.get();
-        
                 for (const doc of snapshot.docs) {
                     const oldId = doc.id;
                     const data = doc.data();
-                    
-                    // Skip if already in correct format
                     if (oldId.endsWith('-pending') || oldId.endsWith('-finished')) continue;
-                    
-                    // Determine status (use existing or infer)
                     let status = data.status;
-                    if (!status) {
-                        // Infer from entries? Hard without entries in Firestore; fallback to 'pending'
-                        status = 'pending';
-                    }
-                    
+                    if (!status) status = 'pending';
                     const newId = generateBatchId(data.colour, data.material, status);
-                    
-                    // Update status field and ID
                     data.status = status;
                     data.id = newId;
-                    
                     await batchesRef.doc(newId).set(data);
                     await batchesRef.doc(oldId).delete();
                     migrated = true;
                     console.log(`Migrated Firestore doc: ${oldId} → ${newId}`);
                 }
             }
-        
-            if (migrated) {
-                showNotification("🔄 Data format upgraded – batch IDs now include status", "success");
-            }
+            if (migrated) showNotification("🔄 Data format upgraded – batch IDs now include status", "success");
         }
         
         // ============================================
         // EVENT LISTENERS SETUP
         // ============================================
         function setupEventListeners() {
-            // Tab switching
             if (elements.tabs) {
                 elements.tabs.forEach(tab => {
                     tab.addEventListener('click', () => {
@@ -2961,15 +2647,11 @@
                         tab.classList.add('active');
                         elements.tabContents.forEach(content => {
                             content.classList.remove('active');
-                            if (content.id === tabId) {
-                                content.classList.add('active');
-                            }
+                            if (content.id === tabId) content.classList.add('active');
                         });
                     });
                 });
             }
-            
-            // Status buttons
             if (elements.statusButtons) {
                 elements.statusButtons.forEach(btn => {
                     btn.addEventListener('click', function() {
@@ -2979,68 +2661,30 @@
                     });
                 });
             }
+            if (elements.addMaterialBtn) elements.addMaterialBtn.addEventListener('click', () => openModal(elements.materialModal));
+            if (elements.addColourBtn) elements.addColourBtn.addEventListener('click', () => openModal(elements.colourModal));
+            if (elements.clearBtn) elements.clearBtn.addEventListener('click', clearForm);
+            if (elements.saveBtn) elements.saveBtn.addEventListener('click', saveEntry);
             
-            // Add material button
-            if (elements.addMaterialBtn) {
-                elements.addMaterialBtn.addEventListener('click', () => openModal(elements.materialModal));
-            }
+            if (elements.exportPdfBtn) elements.exportPdfBtn.addEventListener('click', () => exportToPDF('summary'));
+            if (elements.exportExcelBtn) elements.exportExcelBtn.addEventListener('click', () => exportToExcel('full'));
+            if (elements.exportSummaryBtn) elements.exportSummaryBtn.addEventListener('click', exportSummaryReport);
+            if (elements.exportDetailsBtn) elements.exportDetailsBtn.addEventListener('click', exportDetailedReport);
             
-            // Add colour button
-            if (elements.addColourBtn) {
-                elements.addColourBtn.addEventListener('click', () => openModal(elements.colourModal));
-            }
-            
-            // Clear form button
-            if (elements.clearBtn) {
-                elements.clearBtn.addEventListener('click', clearForm);
-            }
-            
-            // Save entry button
-            if (elements.saveBtn) {
-                elements.saveBtn.addEventListener('click', saveEntry);
-            }
-            
-            // Export buttons
-            if (elements.exportPdfBtn) {
-                elements.exportPdfBtn.addEventListener('click', () => exportToPDF('summary'));
-            }
-            if (elements.exportExcelBtn) {
-                elements.exportExcelBtn.addEventListener('click', () => exportToExcel('full'));
-            }
-            if (elements.exportSummaryBtn) {
-                elements.exportSummaryBtn.addEventListener('click', exportSummaryReport);
-            }
-            if (elements.exportDetailsBtn) {
-                elements.exportDetailsBtn.addEventListener('click', exportDetailedReport);
-            }
-            
-            // Export JSON button
             if (elements.exportBtn) {
                 elements.exportBtn.addEventListener('click', () => {
-                    const data = {
-                        app: APP_CONFIG.appName,
-                        version: APP_CONFIG.version,
-                        exportedAt: new Date().toISOString(),
-                        batches: appState.batches,
-                        entries: appState.entries,
-                        materials: appState.materials,
-                        colours: appState.colours
-                    };
-                    
+                    const data = { app: APP_CONFIG.appName, version: APP_CONFIG.version, exportedAt: new Date().toISOString(), batches: appState.batches, entries: appState.entries, materials: appState.materials, colours: appState.colours };
                     const dataStr = JSON.stringify(data, null, 2);
                     const blob = new Blob([dataStr], { type: 'application/json' });
                     const url = URL.createObjectURL(blob);
-                    
                     const a = document.createElement('a');
                     a.href = url;
                     a.download = `haji-ali-traders-backup-${new Date().toISOString().split('T')[0]}.json`;
                     a.click();
-                    
                     showNotification('✅ JSON backup exported successfully');
                 });
             }
             
-            // Import button
             if (elements.importBtn) {
                 elements.importBtn.addEventListener('click', () => {
                     if (!appState.isLoggedIn) {
@@ -3048,30 +2692,24 @@
                         showLoginModal();
                         return;
                     }
-                    
                     const input = document.createElement('input');
                     input.type = 'file';
                     input.accept = '.json';
-                    
                     input.onchange = async (e) => {
                         const file = e.target.files[0];
                         if (!file) return;
-                        
                         try {
                             const text = await file.text();
                             const data = JSON.parse(text);
-                            
                             if (confirm(`Import ${data.batches?.length || 0} batches? This will replace current data.`)) {
                                 appState.batches = data.batches || [];
                                 appState.entries = data.entries || [];
                                 appState.materials = data.materials || APP_CONFIG.defaultMaterials;
                                 appState.colours = data.colours || APP_CONFIG.defaultColours;
-                                
                                 localStorage.setItem('wastesort_batches', JSON.stringify(appState.batches));
                                 localStorage.setItem('wastesort_entries', JSON.stringify(appState.entries));
                                 localStorage.setItem('wastesort_materials', JSON.stringify(appState.materials));
                                 localStorage.setItem('wastesort_colours', JSON.stringify(appState.colours));
-                                
                                 updateAllDisplays();
                                 showNotification(`✅ ${data.batches?.length || 0} batches imported`);
                             }
@@ -3079,12 +2717,10 @@
                             showNotification('Invalid backup file', 'error');
                         }
                     };
-                    
                     input.click();
                 });
             }
             
-            // Clear all button
             if (elements.clearAllBtn) {
                 elements.clearAllBtn.addEventListener('click', () => {
                     if (!appState.isLoggedIn) {
@@ -3092,7 +2728,6 @@
                         showLoginModal();
                         return;
                     }
-                    
                     if (confirm('Delete ALL data? This cannot be undone!')) {
                         localStorage.clear();
                         appState.batches = [];
@@ -3100,7 +2735,6 @@
                         appState.materials = [...APP_CONFIG.defaultMaterials];
                         appState.colours = [...APP_CONFIG.defaultColours];
                         appState.pendingSync = [];
-                        
                         updateAllDisplays();
                         clearForm();
                         showNotification('✅ All data cleared');
@@ -3108,119 +2742,48 @@
                 });
             }
             
-            // Clear Pending button
-            if (elements.clearPendingBtn) {
-                elements.clearPendingBtn.addEventListener('click', clearPendingBatches);
-            }
+            if (elements.clearPendingBtn) elements.clearPendingBtn.addEventListener('click', clearPendingBatches);
+            if (elements.clearFinishedBtn) elements.clearFinishedBtn.addEventListener('click', clearFinishedBatches);
             
-            // Clear Finished button
-            if (elements.clearFinishedBtn) {
-                elements.clearFinishedBtn.addEventListener('click', clearFinishedBatches);
-            }
+            if (elements.saveMaterialBtn) elements.saveMaterialBtn.addEventListener('click', () => addNewMaterial(elements.newMaterialInput?.value || ''));
+            if (elements.cancelMaterialBtn) elements.cancelMaterialBtn.addEventListener('click', () => closeModal(elements.materialModal));
+            if (elements.saveColourBtn) elements.saveColourBtn.addEventListener('click', () => addNewColour(elements.newColourInput?.value || ''));
+            if (elements.cancelColourBtn) elements.cancelColourBtn.addEventListener('click', () => closeModal(elements.colourModal));
+            if (elements.saveEditBtn) elements.saveEditBtn.addEventListener('click', () => { if (appState.editingBatch) updateBatchWeight(appState.editingBatch.id, elements.editWeightInput?.value); });
+            if (elements.cancelEditBtn) elements.cancelEditBtn.addEventListener('click', () => closeModal(elements.editWeightModal));
+            if (elements.saveMoveBtn) elements.saveMoveBtn.addEventListener('click', moveBatchWeight);
+            if (elements.cancelMoveBtn) elements.cancelMoveBtn.addEventListener('click', () => closeModal(elements.moveWeightModal));
             
-            // Modal buttons
-            if (elements.saveMaterialBtn) {
-                elements.saveMaterialBtn.addEventListener('click', () => addNewMaterial(elements.newMaterialInput?.value || ''));
-            }
-            if (elements.cancelMaterialBtn) {
-                elements.cancelMaterialBtn.addEventListener('click', () => closeModal(elements.materialModal));
-            }
-            if (elements.saveColourBtn) {
-                elements.saveColourBtn.addEventListener('click', () => addNewColour(elements.newColourInput?.value || ''));
-            }
-            if (elements.cancelColourBtn) {
-                elements.cancelColourBtn.addEventListener('click', () => closeModal(elements.colourModal));
-            }
-            if (elements.saveEditBtn) {
-                elements.saveEditBtn.addEventListener('click', () => {
-                    if (appState.editingBatch) {
-                        updateBatchWeight(appState.editingBatch.id, elements.editWeightInput?.value);
-                    }
-                });
-            }
-            if (elements.cancelEditBtn) {
-                elements.cancelEditBtn.addEventListener('click', () => closeModal(elements.editWeightModal));
-            }
-            // Move weight modal buttons
-            if (elements.saveMoveBtn) {
-                elements.saveMoveBtn.addEventListener('click', moveBatchWeight);
-            }
-            if (elements.cancelMoveBtn) {
-                elements.cancelMoveBtn.addEventListener('click', () => closeModal(elements.moveWeightModal));
-            }
+            if (elements.loginBtn) elements.loginBtn.addEventListener('click', showLoginModal);
+            if (elements.logoutBtn) elements.logoutBtn.addEventListener('click', logout);
+            if (elements.loginMobileBtn) elements.loginMobileBtn.addEventListener('click', loginWithMobile);
+            if (elements.cancelLoginBtn) elements.cancelLoginBtn.addEventListener('click', () => closeModal(elements.loginModal));
             
-            // Login buttons
-            if (elements.loginBtn) {
-                elements.loginBtn.addEventListener('click', showLoginModal);
-            }
-            if (elements.logoutBtn) {
-                elements.logoutBtn.addEventListener('click', logout);
-            }
-            if (elements.loginMobileBtn) {
-                elements.loginMobileBtn.addEventListener('click', loginWithMobile);
-            }
-            if (elements.cancelLoginBtn) {
-                elements.cancelLoginBtn.addEventListener('click', () => closeModal(elements.loginModal));
-            }
-            
-            // Mobile input - allow only numbers
             if (elements.mobileNumber) {
-                elements.mobileNumber.addEventListener('input', function() {
-                    this.value = this.value.replace(/\D/g, '').slice(0, 10);
-                });
-                
-                elements.mobileNumber.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') {
-                        loginWithMobile();
-                    }
-                });
+                elements.mobileNumber.addEventListener('input', function() { this.value = this.value.replace(/\D/g, '').slice(0, 10); });
+                elements.mobileNumber.addEventListener('keypress', function(e) { if (e.key === 'Enter') loginWithMobile(); });
             }
             
-            // Close modals on overlay click
             document.querySelectorAll('.modal-overlay').forEach(modal => {
-                modal.addEventListener('click', (e) => {
-                    if (e.target === modal) {
-                        closeModal(modal);
-                    }
-                });
+                modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(modal); });
             });
             
-            // Keyboard shortcuts
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') {
-                    closeModal(elements.materialModal);
-                    closeModal(elements.colourModal);
-                    closeModal(elements.editWeightModal);
-                    closeModal(elements.moveWeightModal);
+                    closeModal(elements.materialModal); closeModal(elements.colourModal);
+                    closeModal(elements.editWeightModal); closeModal(elements.moveWeightModal);
                     closeModal(elements.loginModal);
                 }
-                if (e.key === 'Enter' && e.ctrlKey) {
-                    e.preventDefault();
-                    saveEntry();
-                }
+                if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); saveEntry(); }
             });
             
-            // Online/offline detection
-            window.addEventListener('online', () => {
-                appState.isOnline = true;
-                updateSyncStatus(true);
-                processPendingSync();
-            });
-            
-            window.addEventListener('offline', () => {
-                appState.isOnline = false;
-                updateSyncStatus(false);
-            });
-            
-            setInterval(() => {
-                if (appState.isOnline && appState.pendingSync.length > 0) {
-                    processPendingSync();
-                }
-            }, 30000);
+            window.addEventListener('online', () => { appState.isOnline = true; updateSyncStatus(true); processPendingSync(); });
+            window.addEventListener('offline', () => { appState.isOnline = false; updateSyncStatus(false); });
+            setInterval(() => { if (appState.isOnline && appState.pendingSync.length > 0) processPendingSync(); }, 30000);
         }
         
         // ============================================
-        // INITIALIZATION – with migration call
+        // INITIALIZATION
         // ============================================
         async function initializeApp() {
             loadFromLocalStorage();
@@ -3232,19 +2795,11 @@
             updateAllDisplays();
             setupEventListeners();
             updateSyncStatus(appState.isOnline && appState.pendingSync.length === 0);
-            
             console.log("App initialized successfully");
-            
-            if (!appState.isLoggedIn) {
-                showNotification("🔒 You're in view-only mode. Login to edit data.", "error");
-            } else {
-                showNotification(`Welcome back, ${appState.user.mobile}!`, "success");
-            }
+            if (!appState.isLoggedIn) showNotification("🔒 You're in view-only mode. Login to edit data.", "error");
+            else showNotification(`Welcome back, ${appState.user.mobile}!`, "success");
         }
         
-        // ============================================
-        // GLOBAL FUNCTIONS (for onclick handlers)
-        // ============================================
         window.openEditWeightModal = openEditWeightModal;
         window.openMoveWeightModal = openMoveWeightModal;
         window.markBatchAsFinished = markBatchAsFinished;
@@ -3252,9 +2807,6 @@
         window.exportToPDF = exportToPDF;
         window.exportToExcel = exportToExcel;
         
-        // ============================================
-        // START THE APP
-        // ============================================
         document.addEventListener('DOMContentLoaded', initializeApp);
     </script>
 </body>
