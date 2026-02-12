@@ -1086,6 +1086,19 @@
                         </button>
                     </div>
                     
+                    <!-- NEW: Separate Clear Pending & Clear Finished Buttons -->
+                    <div style="margin-top: 20px;">
+                        <h3 style="color: var(--dark-green); margin-bottom: 15px;">🧹 Clear Data</h3>
+                        <div class="backup-button-grid">
+                            <button class="grid-btn" id="clearPendingBtn" style="background: var(--warning); color: white;">
+                                <span>⏳</span> Clear Pending Batches
+                            </button>
+                            <button class="grid-btn" id="clearFinishedBtn" style="background: var(--finished); color: white;">
+                                <span>✅</span> Clear Finished Batches
+                            </button>
+                        </div>
+                    </div>
+                    
                     <div style="padding: 20px; background: var(--light-green); border-radius: 15px; margin-top: 20px;">
                         <h3 style="color: var(--dark-green); margin-bottom: 10px;">📱 About This App</h3>
                         <p style="color: var(--text-light); font-size: 0.9rem;">
@@ -1285,6 +1298,10 @@
             clearAllBtn: getElement('clearAllBtn'),
             loginBtn: getElement('loginBtn'),
             logoutBtn: getElement('logoutBtn'),
+            
+            // New clear buttons
+            clearPendingBtn: getElement('clearPendingBtn'),
+            clearFinishedBtn: getElement('clearFinishedBtn'),
             
             // Export buttons
             exportPdfBtn: getElement('exportPdfBtn'),
@@ -1670,6 +1687,8 @@
                 elements.addColourBtn,
                 elements.clearAllBtn,
                 elements.importBtn,
+                elements.clearPendingBtn,
+                elements.clearFinishedBtn,
                 elements.weightInput
             ];
             
@@ -2075,6 +2094,121 @@
             }
             
             updateAllDisplays();
+        }
+        
+        // ============================================
+        // NEW: CLEAR PENDING / CLEAR FINISHED FUNCTIONS
+        // ============================================
+        async function clearPendingBatches() {
+            if (!appState.isLoggedIn) {
+                showNotification("Please login to clear pending batches", "error");
+                showLoginModal();
+                return;
+            }
+            
+            const pendingBatches = appState.batches.filter(b => b.status === 'pending');
+            if (pendingBatches.length === 0) {
+                showNotification("No pending batches to clear", "error");
+                return;
+            }
+            
+            if (!confirm(`Are you sure you want to delete ALL ${pendingBatches.length} pending batches? This cannot be undone!`)) {
+                return;
+            }
+            
+            // Get IDs of pending batches
+            const pendingBatchIds = pendingBatches.map(b => b.id);
+            
+            // Remove from appState.batches
+            appState.batches = appState.batches.filter(b => b.status !== 'pending');
+            
+            // Remove corresponding entries from appState.entries
+            appState.entries = appState.entries.filter(entry => {
+                const entryBatchId = `${entry.colour}-${entry.material}`.toLowerCase().replace(/\s+/g, '-');
+                return !pendingBatchIds.includes(entryBatchId);
+            });
+            
+            // Remove any pending sync items that refer to these batches
+            appState.pendingSync = appState.pendingSync.filter(item => 
+                !(item.type === 'batch_update' && pendingBatchIds.includes(item.data.id))
+            );
+            
+            // Update localStorage
+            localStorage.setItem('wastesort_batches', JSON.stringify(appState.batches));
+            localStorage.setItem('wastesort_entries', JSON.stringify(appState.entries));
+            localStorage.setItem('wastesort_pending_sync', JSON.stringify(appState.pendingSync));
+            
+            // If Firebase initialized and online, delete the batch documents from Firestore
+            if (appState.firebaseInitialized && appState.isOnline) {
+                try {
+                    const deletePromises = pendingBatchIds.map(id => 
+                        appState.db.collection(APP_CONFIG.firestoreCollections.batches).doc(id).delete()
+                    );
+                    await Promise.allSettled(deletePromises);
+                } catch (error) {
+                    console.error("Error deleting pending batches from Firebase:", error);
+                    showNotification("Pending batches cleared locally, but some may remain in cloud", "error");
+                }
+            }
+            
+            updateAllDisplays();
+            showNotification(`✅ Cleared ${pendingBatchIds.length} pending batches`);
+        }
+        
+        async function clearFinishedBatches() {
+            if (!appState.isLoggedIn) {
+                showNotification("Please login to clear finished batches", "error");
+                showLoginModal();
+                return;
+            }
+            
+            const finishedBatches = appState.batches.filter(b => b.status === 'finished');
+            if (finishedBatches.length === 0) {
+                showNotification("No finished batches to clear", "error");
+                return;
+            }
+            
+            if (!confirm(`Are you sure you want to delete ALL ${finishedBatches.length} finished batches? This cannot be undone!`)) {
+                return;
+            }
+            
+            // Get IDs of finished batches
+            const finishedBatchIds = finishedBatches.map(b => b.id);
+            
+            // Remove from appState.batches
+            appState.batches = appState.batches.filter(b => b.status !== 'finished');
+            
+            // Remove corresponding entries from appState.entries
+            appState.entries = appState.entries.filter(entry => {
+                const entryBatchId = `${entry.colour}-${entry.material}`.toLowerCase().replace(/\s+/g, '-');
+                return !finishedBatchIds.includes(entryBatchId);
+            });
+            
+            // Remove any pending sync items that refer to these batches
+            appState.pendingSync = appState.pendingSync.filter(item => 
+                !(item.type === 'batch_update' && finishedBatchIds.includes(item.data.id))
+            );
+            
+            // Update localStorage
+            localStorage.setItem('wastesort_batches', JSON.stringify(appState.batches));
+            localStorage.setItem('wastesort_entries', JSON.stringify(appState.entries));
+            localStorage.setItem('wastesort_pending_sync', JSON.stringify(appState.pendingSync));
+            
+            // If Firebase initialized and online, delete the batch documents from Firestore
+            if (appState.firebaseInitialized && appState.isOnline) {
+                try {
+                    const deletePromises = finishedBatchIds.map(id => 
+                        appState.db.collection(APP_CONFIG.firestoreCollections.batches).doc(id).delete()
+                    );
+                    await Promise.allSettled(deletePromises);
+                } catch (error) {
+                    console.error("Error deleting finished batches from Firebase:", error);
+                    showNotification("Finished batches cleared locally, but some may remain in cloud", "error");
+                }
+            }
+            
+            updateAllDisplays();
+            showNotification(`✅ Cleared ${finishedBatchIds.length} finished batches`);
         }
         
         // ============================================
@@ -2594,6 +2728,16 @@
                         showNotification('✅ All data cleared');
                     }
                 });
+            }
+            
+            // NEW: Clear Pending button
+            if (elements.clearPendingBtn) {
+                elements.clearPendingBtn.addEventListener('click', clearPendingBatches);
+            }
+            
+            // NEW: Clear Finished button
+            if (elements.clearFinishedBtn) {
+                elements.clearFinishedBtn.addEventListener('click', clearFinishedBatches);
             }
             
             // Modal buttons
