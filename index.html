@@ -1267,32 +1267,30 @@
         // GLOBAL STATE
         // ============================================
         let appState = {
-            selectedMaterial: null,
-            selectedColour: null,
-            selectedStatus: "pending",
-            
-            materials: [...APP_CONFIG.defaultMaterials],
-            colours: [...APP_CONFIG.defaultColours],
-            batches: [],
-            entries: [],
-            
-            firebaseInitialized: false,
-            db: null,
-            unsubscribeFunctions: [],
-            
-            isOnline: navigator.onLine,
-            lastSyncTime: null,
-            pendingSync: [],
-            
-            editingBatch: null,
-            movingBatch: null,
-            
-            isLoggedIn: false,
-            user: null
-			
-			isLoggedIn: false,
+    selectedMaterial: null,
+    selectedColour: null,
+    selectedStatus: "pending",
+    
+    materials: [...APP_CONFIG.defaultMaterials],
+    colours: [...APP_CONFIG.defaultColours],
+    batches: [],
+    entries: [],
+    
+    firebaseInitialized: false,
+    db: null,
+    unsubscribeFunctions: [],
+    
+    isOnline: navigator.onLine,
+    lastSyncTime: null,
+    pendingSync: [],
+    
+    editingBatch: null,
+    movingBatch: null,
+    
+    isLoggedIn: false,
     user: null,
-    _ignoreBatchSnapshot: false
+    _ignoreBatchSnapshot: false   // <-- added here, with a comma before it
+};
         };
         
         // ============================================
