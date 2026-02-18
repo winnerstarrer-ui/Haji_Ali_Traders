@@ -2201,7 +2201,16 @@
             }
             if (!confirm(`Are you sure you want to delete ALL ${pendingBatches.length} pending batches? This cannot be undone!`)) return;
             
+            // ✅ CRITICAL: Unsubscribe from Firebase listener FIRST
+            // This prevents the listener from re-syncing data while we're clearing
+            if (appState.unsubscribeFunctions && appState.unsubscribeFunctions[2]) {
+                appState.unsubscribeFunctions[2]();
+                console.log("🔴 Unsubscribed from Firebase batches listener");
+            }
+            
             const pendingBatchIds = pendingBatches.map(b => b.id);
+            
+            // ✅ Clear from appState
             appState.batches = appState.batches.filter(b => b.status !== 'pending');
             appState.entries = appState.entries.filter(entry => {
                 if (entry.status !== 'pending') return true;
@@ -2213,38 +2222,44 @@
                 !(item.type === 'batch_delete' && pendingBatchIds.includes(item.id))
             );
             
-            // ✅ PERSIST CHANGES TO LOCALSTORAGE
+            // ✅ CRITICAL: Persist to localStorage IMMEDIATELY
             localStorage.setItem('wastesort_batches', JSON.stringify(appState.batches));
             localStorage.setItem('wastesort_entries', JSON.stringify(appState.entries));
             localStorage.setItem('wastesort_pending_sync', JSON.stringify(appState.pendingSync));
+            console.log("✅ Cleared from localStorage");
             
-            // ✅ DELETE FROM FIREBASE & CLEAR PERSISTENCE CACHE
+            // ✅ CRITICAL: Delete from Firestore
             if (appState.firebaseInitialized && appState.isOnline) {
                 try {
-                    // Delete each batch from Firestore
                     const deletePromises = pendingBatchIds.map(id => 
                         appState.db.collection(APP_CONFIG.firestoreCollections.batches).doc(id).delete()
                     );
                     await Promise.allSettled(deletePromises);
-                    console.log("Deleted pending batches from Firestore");
+                    console.log("✅ Deleted from Firestore");
                     
-                    // ✅ CRITICAL: Clear Firebase persistence cache to prevent re-syncing old data
+                    // ✅ Clear Firebase persistence cache
                     try {
                         await appState.db.clearPersistence();
-                        console.log("Cleared Firebase persistence cache");
+                        console.log("✅ Cleared Firebase persistence cache");
                     } catch (err) {
-                        console.warn("Could not clear persistence (listener may be active):", err);
+                        console.warn("⚠️ Could not clear persistence:", err);
                     }
                 } catch (error) {
-                    console.error("Error deleting pending batches from Firebase:", error);
+                    console.error("❌ Error deleting from Firebase:", error);
                     showNotification("Pending batches cleared locally, but some may remain in cloud", "error");
                 }
             } else if (!appState.isOnline) {
-                // IF OFFLINE: Queue deletion for sync when back online
                 pendingBatchIds.forEach(id => {
                     queueForSync({ type: 'batch_delete', id });
                 });
-                showNotification(`✅ Cleared ${pendingBatchIds.length} pending batches (will sync to cloud when online)`, "success");
+            }
+            
+            // ✅ Wait a bit then re-subscribe to Firebase listener
+            if (appState.firebaseInitialized) {
+                setTimeout(() => {
+                    setupFirebaseListeners();
+                    console.log("🟢 Re-subscribed to Firebase batches listener");
+                }, 800);
             }
             
             updateAllDisplays();
@@ -2264,7 +2279,16 @@
             }
             if (!confirm(`Are you sure you want to delete ALL ${finishedBatches.length} finished batches? This cannot be undone!`)) return;
             
+            // ✅ CRITICAL: Unsubscribe from Firebase listener FIRST
+            // This prevents the listener from re-syncing data while we're clearing
+            if (appState.unsubscribeFunctions && appState.unsubscribeFunctions[2]) {
+                appState.unsubscribeFunctions[2]();
+                console.log("🔴 Unsubscribed from Firebase batches listener");
+            }
+            
             const finishedBatchIds = finishedBatches.map(b => b.id);
+            
+            // ✅ Clear from appState
             appState.batches = appState.batches.filter(b => b.status !== 'finished');
             appState.entries = appState.entries.filter(entry => {
                 if (entry.status !== 'finished') return true;
@@ -2276,38 +2300,44 @@
                 !(item.type === 'batch_delete' && finishedBatchIds.includes(item.id))
             );
             
-            // ✅ PERSIST CHANGES TO LOCALSTORAGE
+            // ✅ CRITICAL: Persist to localStorage IMMEDIATELY
             localStorage.setItem('wastesort_batches', JSON.stringify(appState.batches));
             localStorage.setItem('wastesort_entries', JSON.stringify(appState.entries));
             localStorage.setItem('wastesort_pending_sync', JSON.stringify(appState.pendingSync));
+            console.log("✅ Cleared from localStorage");
             
-            // ✅ DELETE FROM FIREBASE & CLEAR PERSISTENCE CACHE
+            // ✅ CRITICAL: Delete from Firestore
             if (appState.firebaseInitialized && appState.isOnline) {
                 try {
-                    // Delete each batch from Firestore
                     const deletePromises = finishedBatchIds.map(id => 
                         appState.db.collection(APP_CONFIG.firestoreCollections.batches).doc(id).delete()
                     );
                     await Promise.allSettled(deletePromises);
-                    console.log("Deleted finished batches from Firestore");
+                    console.log("✅ Deleted from Firestore");
                     
-                    // ✅ CRITICAL: Clear Firebase persistence cache to prevent re-syncing old data
+                    // ✅ Clear Firebase persistence cache
                     try {
                         await appState.db.clearPersistence();
-                        console.log("Cleared Firebase persistence cache");
+                        console.log("✅ Cleared Firebase persistence cache");
                     } catch (err) {
-                        console.warn("Could not clear persistence (listener may be active):", err);
+                        console.warn("⚠️ Could not clear persistence:", err);
                     }
                 } catch (error) {
-                    console.error("Error deleting finished batches from Firebase:", error);
+                    console.error("❌ Error deleting from Firebase:", error);
                     showNotification("Finished batches cleared locally, but some may remain in cloud", "error");
                 }
             } else if (!appState.isOnline) {
-                // IF OFFLINE: Queue deletion for sync when back online
                 finishedBatchIds.forEach(id => {
                     queueForSync({ type: 'batch_delete', id });
                 });
-                showNotification(`✅ Cleared ${finishedBatchIds.length} finished batches (will sync to cloud when online)`, "success");
+            }
+            
+            // ✅ Wait a bit then re-subscribe to Firebase listener
+            if (appState.firebaseInitialized) {
+                setTimeout(() => {
+                    setupFirebaseListeners();
+                    console.log("🟢 Re-subscribed to Firebase batches listener");
+                }, 800);
             }
             
             updateAllDisplays();
