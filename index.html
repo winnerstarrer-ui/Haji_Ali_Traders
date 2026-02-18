@@ -1763,6 +1763,8 @@
                 .onSnapshot((snapshot) => {
                     const batches = [];
                     snapshot.forEach(doc => batches.push({ id: doc.id, ...doc.data() }));
+                    console.log("🔵 FIREBASE LISTENER FIRED - syncing", batches.length, "batches");
+                    batches.forEach(b => console.log("  - From Firebase:", b.id, "status:", b.status));
                     appState.batches = batches;
                     updateAllDisplays();
                     updateSyncStatus(true);
@@ -2279,16 +2281,11 @@
             }
             if (!confirm(`Are you sure you want to delete ALL ${finishedBatches.length} finished batches? This cannot be undone!`)) return;
             
-            // ✅ CRITICAL: Unsubscribe from Firebase listener FIRST
-            // This prevents the listener from re-syncing data while we're clearing
-            if (appState.unsubscribeFunctions && appState.unsubscribeFunctions[2]) {
-                appState.unsubscribeFunctions[2]();
-                console.log("🔴 Unsubscribed from Firebase batches listener");
-            }
-            
+            console.log("=== CLEAR FINISHED BATCHES START ===");
             const finishedBatchIds = finishedBatches.map(b => b.id);
+            console.log("Batch IDs to delete:", finishedBatchIds);
             
-            // ✅ Clear from appState
+            // Step 1: Clear from appState
             appState.batches = appState.batches.filter(b => b.status !== 'finished');
             appState.entries = appState.entries.filter(entry => {
                 if (entry.status !== 'finished') return true;
@@ -2299,49 +2296,47 @@
                 !(item.type === 'batch_update' && finishedBatchIds.includes(item.data.id)) &&
                 !(item.type === 'batch_delete' && finishedBatchIds.includes(item.id))
             );
+            console.log("✅ Step 1: Cleared from appState. Remaining batches:", appState.batches.length);
             
-            // ✅ CRITICAL: Persist to localStorage IMMEDIATELY
+            // Step 2: Unsubscribe from listener
+            if (appState.unsubscribeFunctions && appState.unsubscribeFunctions[2]) {
+                appState.unsubscribeFunctions[2]();
+                console.log("🔴 Step 2: Unsubscribed from Firebase listener");
+            }
+            
+            // Step 3: Persist to localStorage
             localStorage.setItem('wastesort_batches', JSON.stringify(appState.batches));
             localStorage.setItem('wastesort_entries', JSON.stringify(appState.entries));
             localStorage.setItem('wastesort_pending_sync', JSON.stringify(appState.pendingSync));
-            console.log("✅ Cleared from localStorage");
+            const checkLS = JSON.parse(localStorage.getItem('wastesort_batches') || '[]');
+            console.log("✅ Step 3: Saved to localStorage. localStorage now has:", checkLS.length, "batches");
             
-            // ✅ CRITICAL: Delete from Firestore
+            // Step 4: Delete from Firestore
             if (appState.firebaseInitialized && appState.isOnline) {
                 try {
+                    console.log("Deleting from Firestore:", finishedBatchIds);
                     const deletePromises = finishedBatchIds.map(id => 
                         appState.db.collection(APP_CONFIG.firestoreCollections.batches).doc(id).delete()
                     );
                     await Promise.allSettled(deletePromises);
-                    console.log("✅ Deleted from Firestore");
+                    console.log("✅ Step 4: Deleted from Firestore");
                     
-                    // ✅ Clear Firebase persistence cache
-                    try {
-                        await appState.db.clearPersistence();
-                        console.log("✅ Cleared Firebase persistence cache");
-                    } catch (err) {
-                        console.warn("⚠️ Could not clear persistence:", err);
-                    }
+                    // Verify deletion
+                    const remaining = await appState.db.collection(APP_CONFIG.firestoreCollections.batches).get();
+                    console.log("After deletion, Firestore has:", remaining.docs.length, "batches");
+                    remaining.docs.forEach(doc => {
+                        console.log("  -", doc.id, "status:", doc.data().status);
+                    });
+                    
                 } catch (error) {
-                    console.error("❌ Error deleting from Firebase:", error);
-                    showNotification("Finished batches cleared locally, but some may remain in cloud", "error");
+                    console.error("❌ Error deleting from Firestore:", error);
+                    showNotification("Error clearing from cloud", "error");
                 }
-            } else if (!appState.isOnline) {
-                finishedBatchIds.forEach(id => {
-                    queueForSync({ type: 'batch_delete', id });
-                });
             }
             
-            // ✅ Wait a bit then re-subscribe to Firebase listener
-            if (appState.firebaseInitialized) {
-                setTimeout(() => {
-                    setupFirebaseListeners();
-                    console.log("🟢 Re-subscribed to Firebase batches listener");
-                }, 800);
-            }
-            
+            console.log("=== CLEAR FINISHED BATCHES END ===");
             updateAllDisplays();
-            showNotification(`✅ Cleared ${finishedBatchIds.length} finished batches`);
+            showNotification(`✅ Cleared ${finishedBatchIds.length} finished batches - CHECK CONSOLE for verification`);
         }
         
         // ============================================
@@ -2366,6 +2361,11 @@
                 const batches = JSON.parse(localStorage.getItem('wastesort_batches') || '[]');
                 const materials = JSON.parse(localStorage.getItem('wastesort_materials') || '[]');
                 const colours = JSON.parse(localStorage.getItem('wastesort_colours') || '[]');
+                
+                console.log("=== LOADING FROM LOCALSTORAGE ===");
+                console.log("Entries from localStorage:", entries.length);
+                console.log("Batches from localStorage:", batches.length);
+                batches.forEach(b => console.log("  - Batch:", b.id, "status:", b.status));
                 
                 if (entries.length > 0) appState.entries = entries;
                 if (batches.length > 0) appState.batches = batches;
