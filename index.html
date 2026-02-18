@@ -1288,7 +1288,8 @@
             movingBatch: null,
             
             isLoggedIn: false,
-            user: null
+            user: null,
+            _ignoreBatchSnapshot: false   // <-- ADDED FLAG
         };
         
         // ============================================
@@ -1761,6 +1762,9 @@
             const batchesUnsubscribe = appState.db.collection(APP_CONFIG.firestoreCollections.batches)
                 .orderBy('lastUpdated', 'desc')
                 .onSnapshot((snapshot) => {
+                    // If we're temporarily ignoring snapshots, do nothing
+                    if (appState._ignoreBatchSnapshot) return;
+
                     const batches = [];
                     snapshot.forEach(doc => batches.push({ id: doc.id, ...doc.data() }));
                     appState.batches = batches;
@@ -2188,6 +2192,9 @@
             updateAllDisplays();
         }
         
+        // ============================================
+        // NEW CLEAR FUNCTIONS – QUERY FIRESTORE DIRECTLY
+        // ============================================
         async function clearPendingBatches() {
             if (!appState.isLoggedIn) {
                 showNotification("Please login to clear pending batches", "error");
@@ -2195,55 +2202,64 @@
                 return;
             }
             
-            const pendingBatches = appState.batches.filter(b => b.status === 'pending');
-            if (pendingBatches.length === 0) {
+            if (!appState.firebaseInitialized) {
+                showNotification("Firebase not initialized", "error");
+                return;
+            }
+            
+            const pendingSnapshot = await appState.db.collection(APP_CONFIG.firestoreCollections.batches)
+                .where('status', '==', 'pending')
+                .get();
+            
+            const pendingDocs = pendingSnapshot.docs;
+            if (pendingDocs.length === 0) {
                 showNotification("No pending batches to clear", "error");
                 return;
             }
-            if (!confirm(`Are you sure you want to delete ALL ${pendingBatches.length} pending batches? This cannot be undone!`)) return;
             
-            // Step 1: Clear from memory
+            if (!confirm(`Are you sure you want to delete ALL ${pendingDocs.length} pending batches? This cannot be undone!`)) return;
+            
+            appState._ignoreBatchSnapshot = true;
+            
+            const pendingDocIds = pendingDocs.map(doc => doc.id);
+            
             appState.batches = appState.batches.filter(b => b.status !== 'pending');
             appState.entries = appState.entries.filter(entry => entry.status !== 'pending');
+            appState.pendingSync = appState.pendingSync.filter(item => 
+                !(item.type === 'batch_update' && pendingDocIds.includes(item.data.id)) &&
+                !(item.type === 'batch_delete' && pendingDocIds.includes(item.id))
+            );
             
-            // Step 2: Persist to localStorage
             localStorage.setItem('wastesort_batches', JSON.stringify(appState.batches));
             localStorage.setItem('wastesort_entries', JSON.stringify(appState.entries));
             localStorage.setItem('wastesort_pending_sync', JSON.stringify(appState.pendingSync));
             
-            // Step 3: Delete from Firestore
-            if (appState.firebaseInitialized && appState.isOnline) {
+            const failedDeletions = [];
+            const deletePromises = pendingDocIds.map(async (id) => {
                 try {
-                    // Get ALL documents from batches collection
-                    const snapshot = await appState.db.collection(APP_CONFIG.firestoreCollections.batches).get();
-                    
-                    // Create a batch write to delete all pending batches at once
-                    const batch = appState.db.batch();
-                    let deletedCount = 0;
-                    
-                    snapshot.docs.forEach(doc => {
-                        const data = doc.data();
-                        // Delete if status is pending
-                        if (data.status === 'pending') {
-                            batch.delete(doc.ref);
-                            deletedCount++;
-                        }
-                    });
-                    
-                    // Commit the batch delete
-                    if (deletedCount > 0) {
-                        await batch.commit();
-                        console.log(`✅ Batch deleted ${deletedCount} pending batches from Firestore`);
-                    }
-                    
+                    await appState.db.collection(APP_CONFIG.firestoreCollections.batches).doc(id).delete();
                 } catch (error) {
-                    console.error("❌ Error deleting from Firestore:", error);
-                    showNotification("Error clearing from cloud - changes saved locally", "error");
+                    console.error(`Failed to delete ${id} from Firestore:`, error);
+                    failedDeletions.push(id);
                 }
+            });
+            await Promise.allSettled(deletePromises);
+            
+            if (failedDeletions.length > 0) {
+                failedDeletions.forEach(id => {
+                    appState.pendingSync.push({ type: 'batch_delete', id, timestamp: new Date().toISOString() });
+                });
+                localStorage.setItem('wastesort_pending_sync', JSON.stringify(appState.pendingSync));
+                showNotification(`⚠️ ${failedDeletions.length} batches cleared locally, but cloud deletion failed. Will retry.`, "error");
+            } else {
+                showNotification(`✅ Cleared ${pendingDocIds.length} pending batches`);
             }
             
+            setTimeout(() => {
+                appState._ignoreBatchSnapshot = false;
+            }, 1000);
+            
             updateAllDisplays();
-            showNotification(`✅ Cleared ${pendingBatches.length} pending batches`);
         }
         
         async function clearFinishedBatches() {
@@ -2253,55 +2269,64 @@
                 return;
             }
             
-            const finishedBatches = appState.batches.filter(b => b.status === 'finished');
-            if (finishedBatches.length === 0) {
+            if (!appState.firebaseInitialized) {
+                showNotification("Firebase not initialized", "error");
+                return;
+            }
+            
+            const finishedSnapshot = await appState.db.collection(APP_CONFIG.firestoreCollections.batches)
+                .where('status', '==', 'finished')
+                .get();
+            
+            const finishedDocs = finishedSnapshot.docs;
+            if (finishedDocs.length === 0) {
                 showNotification("No finished batches to clear", "error");
                 return;
             }
-            if (!confirm(`Are you sure you want to delete ALL ${finishedBatches.length} finished batches? This cannot be undone!`)) return;
             
-            // Step 1: Clear from memory
+            if (!confirm(`Are you sure you want to delete ALL ${finishedDocs.length} finished batches? This cannot be undone!`)) return;
+            
+            appState._ignoreBatchSnapshot = true;
+            
+            const finishedDocIds = finishedDocs.map(doc => doc.id);
+            
             appState.batches = appState.batches.filter(b => b.status !== 'finished');
             appState.entries = appState.entries.filter(entry => entry.status !== 'finished');
+            appState.pendingSync = appState.pendingSync.filter(item => 
+                !(item.type === 'batch_update' && finishedDocIds.includes(item.data.id)) &&
+                !(item.type === 'batch_delete' && finishedDocIds.includes(item.id))
+            );
             
-            // Step 2: Persist to localStorage
             localStorage.setItem('wastesort_batches', JSON.stringify(appState.batches));
             localStorage.setItem('wastesort_entries', JSON.stringify(appState.entries));
             localStorage.setItem('wastesort_pending_sync', JSON.stringify(appState.pendingSync));
             
-            // Step 3: Delete from Firestore
-            if (appState.firebaseInitialized && appState.isOnline) {
+            const failedDeletions = [];
+            const deletePromises = finishedDocIds.map(async (id) => {
                 try {
-                    // Get ALL documents from batches collection
-                    const snapshot = await appState.db.collection(APP_CONFIG.firestoreCollections.batches).get();
-                    
-                    // Create a batch write to delete all finished batches at once
-                    const batch = appState.db.batch();
-                    let deletedCount = 0;
-                    
-                    snapshot.docs.forEach(doc => {
-                        const data = doc.data();
-                        // Delete if status is finished
-                        if (data.status === 'finished') {
-                            batch.delete(doc.ref);
-                            deletedCount++;
-                        }
-                    });
-                    
-                    // Commit the batch delete
-                    if (deletedCount > 0) {
-                        await batch.commit();
-                        console.log(`✅ Batch deleted ${deletedCount} finished batches from Firestore`);
-                    }
-                    
+                    await appState.db.collection(APP_CONFIG.firestoreCollections.batches).doc(id).delete();
                 } catch (error) {
-                    console.error("❌ Error deleting from Firestore:", error);
-                    showNotification("Error clearing from cloud - changes saved locally", "error");
+                    console.error(`Failed to delete ${id} from Firestore:`, error);
+                    failedDeletions.push(id);
                 }
+            });
+            await Promise.allSettled(deletePromises);
+            
+            if (failedDeletions.length > 0) {
+                failedDeletions.forEach(id => {
+                    appState.pendingSync.push({ type: 'batch_delete', id, timestamp: new Date().toISOString() });
+                });
+                localStorage.setItem('wastesort_pending_sync', JSON.stringify(appState.pendingSync));
+                showNotification(`⚠️ ${failedDeletions.length} batches cleared locally, but cloud deletion failed. Will retry.`, "error");
+            } else {
+                showNotification(`✅ Cleared ${finishedDocIds.length} finished batches`);
             }
             
+            setTimeout(() => {
+                appState._ignoreBatchSnapshot = false;
+            }, 1000);
+            
             updateAllDisplays();
-            showNotification(`✅ Cleared ${finishedBatches.length} finished batches`);
         }
         
         // ============================================
