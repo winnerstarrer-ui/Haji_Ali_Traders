@@ -2201,6 +2201,13 @@
             }
             if (!confirm(`Are you sure you want to delete ALL ${pendingBatches.length} pending batches? This cannot be undone!`)) return;
             
+            // ✅ CRITICAL FIX: Temporarily unsubscribe from Firebase listener
+            // to prevent it from re-syncing deleted batches
+            if (appState.unsubscribeFunctions && appState.unsubscribeFunctions[2]) {
+                appState.unsubscribeFunctions[2]();
+                console.log("Unsubscribed from Firebase batches listener");
+            }
+            
             const pendingBatchIds = pendingBatches.map(b => b.id);
             appState.batches = appState.batches.filter(b => b.status !== 'pending');
             appState.entries = appState.entries.filter(entry => {
@@ -2225,6 +2232,7 @@
                         appState.db.collection(APP_CONFIG.firestoreCollections.batches).doc(id).delete()
                     );
                     await Promise.allSettled(deletePromises);
+                    console.log("Deleted pending batches from Firebase");
                 } catch (error) {
                     console.error("Error deleting pending batches from Firebase:", error);
                     showNotification("Pending batches cleared locally, but some may remain in cloud", "error");
@@ -2235,6 +2243,23 @@
                     queueForSync({ type: 'batch_delete', id });
                 });
                 showNotification(`✅ Cleared ${pendingBatchIds.length} pending batches (will sync to cloud when online)`, "success");
+            }
+            
+            // ✅ RE-SUBSCRIBE to Firebase listener with a slight delay to ensure deletions have propagated
+            if (appState.firebaseInitialized && appState.unsubscribeFunctions) {
+                setTimeout(() => {
+                    const batchesUnsubscribe = appState.db.collection(APP_CONFIG.firestoreCollections.batches)
+                        .orderBy('lastUpdated', 'desc')
+                        .onSnapshot((snapshot) => {
+                            const batches = [];
+                            snapshot.forEach(doc => batches.push({ id: doc.id, ...doc.data() }));
+                            appState.batches = batches;
+                            updateAllDisplays();
+                            updateSyncStatus(true);
+                        });
+                    appState.unsubscribeFunctions[2] = batchesUnsubscribe;
+                    console.log("Re-subscribed to Firebase batches listener");
+                }, 1000);
             }
             
             updateAllDisplays();
@@ -2253,6 +2278,13 @@
                 return;
             }
             if (!confirm(`Are you sure you want to delete ALL ${finishedBatches.length} finished batches? This cannot be undone!`)) return;
+            
+            // ✅ CRITICAL FIX: Temporarily unsubscribe from Firebase listener
+            // to prevent it from re-syncing deleted batches
+            if (appState.unsubscribeFunctions && appState.unsubscribeFunctions[2]) {
+                appState.unsubscribeFunctions[2]();
+                console.log("Unsubscribed from Firebase batches listener");
+            }
             
             const finishedBatchIds = finishedBatches.map(b => b.id);
             appState.batches = appState.batches.filter(b => b.status !== 'finished');
@@ -2278,6 +2310,7 @@
                         appState.db.collection(APP_CONFIG.firestoreCollections.batches).doc(id).delete()
                     );
                     await Promise.allSettled(deletePromises);
+                    console.log("Deleted finished batches from Firebase");
                 } catch (error) {
                     console.error("Error deleting finished batches from Firebase:", error);
                     showNotification("Finished batches cleared locally, but some may remain in cloud", "error");
@@ -2288,6 +2321,23 @@
                     queueForSync({ type: 'batch_delete', id });
                 });
                 showNotification(`✅ Cleared ${finishedBatchIds.length} finished batches (will sync to cloud when online)`, "success");
+            }
+            
+            // ✅ RE-SUBSCRIBE to Firebase listener with a slight delay to ensure deletions have propagated
+            if (appState.firebaseInitialized && appState.unsubscribeFunctions) {
+                setTimeout(() => {
+                    const batchesUnsubscribe = appState.db.collection(APP_CONFIG.firestoreCollections.batches)
+                        .orderBy('lastUpdated', 'desc')
+                        .onSnapshot((snapshot) => {
+                            const batches = [];
+                            snapshot.forEach(doc => batches.push({ id: doc.id, ...doc.data() }));
+                            appState.batches = batches;
+                            updateAllDisplays();
+                            updateSyncStatus(true);
+                        });
+                    appState.unsubscribeFunctions[2] = batchesUnsubscribe;
+                    console.log("Re-subscribed to Firebase batches listener");
+                }, 1000);
             }
             
             updateAllDisplays();
